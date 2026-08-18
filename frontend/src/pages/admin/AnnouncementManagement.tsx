@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Pagination,
   TextField,
   Typography,
 } from "@mui/material";
@@ -28,12 +29,6 @@ import {
 
 import type {
   Announcement,
-  CreateAnnouncementMutation,
-  CreateAnnouncementMutationVariables,
-  GetAllAnnouncementsQuery,
-  GetAllPgsRoomsQuery,
-  UpdateAnnouncementMutation,
-  UpdateAnnouncementMutationVariables,
 } from "../../types/AnnouncementManagement.types";
 
 const AnnouncementManagement = () => {
@@ -48,41 +43,35 @@ const AnnouncementManagement = () => {
   const [content, setContent] = useState("");
   const [isActive, setIsActive] = useState(true);
 
-  const {
-    data,
-    loading,
-    error,
-  } = useQuery<GetAllAnnouncementsQuery>(
+  const [page, setPage] = useState(1);
+  const limit = 6;
+
+  const { data, loading, error } = useQuery(
     GET_ALL_ANNOUNCEMENTS,
+    {
+      variables: {
+        page,
+        limit,
+      },
+    },
   );
 
-  const {
-    data: pgData,
-    loading: pgLoading,
-  } = useQuery<GetAllPgsRoomsQuery>(
-    GET_ALL_PGS,
-  );
+  const { data: pgData, loading: pgLoading } =
+    useQuery(GET_ALL_PGS);
 
-  const [
-    createAnnouncement,
-    { loading: creating },
-  ] = useMutation<
-    CreateAnnouncementMutation,
-    CreateAnnouncementMutationVariables
-  >(CREATE_ANNOUNCEMENT);
+  const [createAnnouncement, { loading: creating }] = useMutation(CREATE_ANNOUNCEMENT);
 
-  const [
-    updateAnnouncement,
-    { loading: updating },
-  ] = useMutation<
-    UpdateAnnouncementMutation,
-    UpdateAnnouncementMutationVariables
-  >(UPDATE_ANNOUNCEMENT);
+  const [updateAnnouncement, { loading: updating }] = useMutation(UPDATE_ANNOUNCEMENT);
 
-  const announcements: Announcement[] =
-    data?.getAllAnnouncements ?? [];
+  const announcements: Announcement[] = data?.getAllAnnouncements.items ?? [];
+
+  const totalPages = data?.getAllAnnouncements.totalPages ?? 1;
 
   const pgs = pgData?.getAllPgsRooms ?? [];
+
+  const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+  };
 
   const handleCreateOpen = () => {
     setPgId("");
@@ -113,7 +102,13 @@ const AnnouncementManagement = () => {
           },
         },
         refetchQueries: [
-          GET_ALL_ANNOUNCEMENTS,
+          {
+            query: GET_ALL_ANNOUNCEMENTS,
+            variables: {
+              page,
+              limit,
+            },
+          },
         ],
       });
 
@@ -123,9 +118,7 @@ const AnnouncementManagement = () => {
     }
   };
 
-  const handleUpdateOpen = (
-    announcement: Announcement,
-  ) => {
+  const handleUpdateOpen = (announcement: Announcement) => {
     setSelectedAnnouncement(announcement);
     setIsActive(announcement.isActive);
     setUpdateOpen(true);
@@ -145,14 +138,19 @@ const AnnouncementManagement = () => {
     try {
       await updateAnnouncement({
         variables: {
-          announcementId:
-            selectedAnnouncement.id,
+          announcementId: selectedAnnouncement.id,
           input: {
             isActive,
           },
         },
         refetchQueries: [
-          GET_ALL_ANNOUNCEMENTS,
+          {
+            query: GET_ALL_ANNOUNCEMENTS,
+            variables: {
+              page,
+              limit,
+            },
+          },
         ],
       });
 
@@ -179,11 +177,7 @@ const AnnouncementManagement = () => {
   };
 
   if (loading) {
-    return (
-      <Typography>
-        Loading announcements...
-      </Typography>
-    );
+    return <Typography>Loading announcements...</Typography>;
   }
 
   if (error) {
@@ -215,9 +209,7 @@ const AnnouncementManagement = () => {
             Announcements
           </Typography>
 
-          <Typography>
-            Create and manage PG announcements
-          </Typography>
+          <Typography>Create and manage PG announcements</Typography>
         </Box>
 
         <Button
@@ -248,9 +240,7 @@ const AnnouncementManagement = () => {
       >
         <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography>
-              Total Announcements
-            </Typography>
+            <Typography>Total Announcements</Typography>
 
             <Typography
               variant="h5"
@@ -259,16 +249,14 @@ const AnnouncementManagement = () => {
                 marginTop: 1,
               }}
             >
-              {announcements.length}
+              {data?.getAllAnnouncements.total ?? 0}
             </Typography>
           </CardContent>
         </Card>
 
         <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography>
-              Active
-            </Typography>
+            <Typography>Active</Typography>
 
             <Typography
               variant="h5"
@@ -279,10 +267,8 @@ const AnnouncementManagement = () => {
               }}
             >
               {
-                announcements.filter(
-                  (announcement) =>
-                    announcement.isActive,
-                ).length
+                announcements.filter((announcement) => announcement.isActive)
+                  .length
               }
             </Typography>
           </CardContent>
@@ -290,9 +276,7 @@ const AnnouncementManagement = () => {
 
         <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography>
-              Inactive
-            </Typography>
+            <Typography>Inactive</Typography>
 
             <Typography
               variant="h5"
@@ -303,10 +287,8 @@ const AnnouncementManagement = () => {
               }}
             >
               {
-                announcements.filter(
-                  (announcement) =>
-                    !announcement.isActive,
-                ).length
+                announcements.filter((announcement) => !announcement.isActive)
+                  .length
               }
             </Typography>
           </CardContent>
@@ -331,9 +313,7 @@ const AnnouncementManagement = () => {
             }}
           >
             <CardContent>
-              <Typography align="center">
-                No announcements found
-              </Typography>
+              <Typography align="center">No announcements found</Typography>
             </CardContent>
           </Card>
         ) : (
@@ -356,8 +336,7 @@ const AnnouncementManagement = () => {
                 <Box
                   sx={{
                     display: "flex",
-                    justifyContent:
-                      "space-between",
+                    justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: 1,
                     marginBottom: 2,
@@ -373,18 +352,13 @@ const AnnouncementManagement = () => {
                   </Typography>
 
                   <Chip
-                    label={
-                      announcement.isActive
-                        ? "Active"
-                        : "Inactive"
-                    }
+                    label={announcement.isActive ? "Active" : "Inactive"}
                     size="small"
                     sx={{
                       color: "#FFFFFF",
-                      backgroundColor:
-                        announcement.isActive
-                          ? "#16A34A"
-                          : "#6B7280",
+                      backgroundColor: announcement.isActive
+                        ? "#16A34A"
+                        : "#6B7280",
                     }}
                   />
                 </Box>
@@ -415,20 +389,13 @@ const AnnouncementManagement = () => {
                     marginBottom: 2,
                   }}
                 >
-                  Created:{" "}
-                  {formatDate(
-                    announcement.createdAt,
-                  )}
+                  Created: {formatDate(announcement.createdAt)}
                 </Typography>
 
                 <Button
                   size="small"
                   startIcon={<EditIcon />}
-                  onClick={() =>
-                    handleUpdateOpen(
-                      announcement,
-                    )
-                  }
+                  onClick={() => handleUpdateOpen(announcement)}
                   sx={{
                     color: "#FFFFFF",
                     backgroundColor: "#5B21B6",
@@ -445,15 +412,45 @@ const AnnouncementManagement = () => {
         )}
       </Box>
 
+      {totalPages >= 1 && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 4,
+            marginBottom: 2,
+          }}
+        >
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
+            sx={{
+              "& .MuiPaginationItem-root": {
+                color: "#5B21B6",
+              },
+              "& .MuiPaginationItem-root.Mui-selected": {
+                backgroundColor: "#5B21B6",
+                color: "#FFFFFF",
+                "&:hover": {
+                  backgroundColor: "#4C1D95",
+                },
+              },
+              "& .MuiPaginationItem-root:hover": {
+                backgroundColor: "#EDE9FE",
+              },
+            }}
+          />
+        </Box>
+      )}
+
       <Dialog
         open={createOpen}
         onClose={handleCreateClose}
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>
-          Create Announcement
-        </DialogTitle>
+        <DialogTitle>Create Announcement</DialogTitle>
 
         <DialogContent>
           <Box sx={{ marginTop: 1 }}>
@@ -462,23 +459,16 @@ const AnnouncementManagement = () => {
               label="PG"
               fullWidth
               value={pgId}
-              onChange={(e) =>
-                setPgId(e.target.value)
-              }
+              onChange={(e) => setPgId(e.target.value)}
               disabled={pgLoading}
               sx={{ marginBottom: 2 }}
             >
               <MenuItem value="" disabled>
-                {pgLoading
-                  ? "Loading PGs..."
-                  : "Select PG"}
+                {pgLoading ? "Loading PGs..." : "Select PG"}
               </MenuItem>
 
               {pgs.map((pg) => (
-                <MenuItem
-                  key={pg.id}
-                  value={pg.id}
-                >
+                <MenuItem key={pg.id} value={pg.id}>
                   {pg.name}
                 </MenuItem>
               ))}
@@ -488,9 +478,7 @@ const AnnouncementManagement = () => {
               label="Title"
               fullWidth
               value={title}
-              onChange={(e) =>
-                setTitle(e.target.value)
-              }
+              onChange={(e) => setTitle(e.target.value)}
               sx={{ marginBottom: 2 }}
             />
 
@@ -500,27 +488,20 @@ const AnnouncementManagement = () => {
               multiline
               minRows={4}
               value={content}
-              onChange={(e) =>
-                setContent(e.target.value)
-              }
+              onChange={(e) => setContent(e.target.value)}
             />
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleCreateClose} sx={{color:"#5B21B6"}}>
+          <Button onClick={handleCreateClose} sx={{ color: "#5B21B6" }}>
             Cancel
           </Button>
 
           <Button
             variant="contained"
             onClick={handleCreate}
-            disabled={
-              creating ||
-              !pgId ||
-              !title ||
-              !content
-            }
+            disabled={creating || !pgId || !title || !content}
             sx={{
               backgroundColor: "#5B21B6",
               "&:hover": {
@@ -528,9 +509,7 @@ const AnnouncementManagement = () => {
               },
             }}
           >
-            {creating
-              ? "Creating..."
-              : "Create Announcement"}
+            {creating ? "Creating..." : "Create Announcement"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -541,68 +520,40 @@ const AnnouncementManagement = () => {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>
-          Update Announcement
-        </DialogTitle>
+        <DialogTitle>Update Announcement</DialogTitle>
 
         <DialogContent>
           {selectedAnnouncement && (
             <Box sx={{ marginTop: 1 }}>
-              <Typography
-                sx={{ marginBottom: 2 }}
-              >
-                Title:{" "}
-                <strong>
-                  {selectedAnnouncement.title}
-                </strong>
+              <Typography sx={{ marginBottom: 2 }}>
+                Title: <strong>{selectedAnnouncement.title}</strong>
               </Typography>
 
-              <Typography
-                sx={{ marginBottom: 2 }}
-              >
-                Content:{" "}
-                {selectedAnnouncement.content}
+              <Typography sx={{ marginBottom: 2 }}>
+                Content: {selectedAnnouncement.content}
               </Typography>
 
-              <Typography
-                sx={{ marginBottom: 2 }}
-              >
-                PG:{" "}
-                <strong>
-                  {selectedAnnouncement.pg.name}
-                </strong>
+              <Typography sx={{ marginBottom: 2 }}>
+                PG: <strong>{selectedAnnouncement.pg.name}</strong>
               </Typography>
 
               <TextField
                 select
                 label="Status"
                 fullWidth
-                value={
-                  isActive
-                    ? "active"
-                    : "inactive"
-                }
-                onChange={(e) =>
-                  setIsActive(
-                    e.target.value ===
-                      "active",
-                  )
-                }
+                value={isActive ? "active" : "inactive"}
+                onChange={(e) => setIsActive(e.target.value === "active")}
               >
-                <MenuItem value="active">
-                  Active
-                </MenuItem>
+                <MenuItem value="active">Active</MenuItem>
 
-                <MenuItem value="inactive">
-                  Inactive
-                </MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
               </TextField>
             </Box>
           )}
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleUpdateClose} sx={{color:"#5B21B6"}}>
+          <Button onClick={handleUpdateClose} sx={{ color: "#5B21B6" }}>
             Cancel
           </Button>
 
@@ -617,9 +568,7 @@ const AnnouncementManagement = () => {
               },
             }}
           >
-            {updating
-              ? "Updating..."
-              : "Update Status"}
+            {updating ? "Updating..." : "Update Status"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -2,32 +2,33 @@ export interface Room {
   id: string;
   pgId: string;
   roomNo: number;
-  floor: number;
+  floor: number | null;
   capacity: number;
   occupiedNo: number;
   monthlyRent: number;
   status: string;
   createdAt: string;
   updatedAt: string;
+  pg?: {
+    id: string;
+    name: string;
+  };
 }
 
-export interface Pg {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  contactNo: string;
-  description: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  rooms: Room[];
+export interface GetAllRoomsResponse {
+  getAllRooms: {
+    items: Room[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
-export interface GetAllPgsRoomsResponse {
-  getAllPgsRooms: Pg[];
+export interface GetAllRoomsVariables {
+  page?: number;
+  limit?: number;
+  search?: string;
 }
 
 export interface CreateRoomInput {

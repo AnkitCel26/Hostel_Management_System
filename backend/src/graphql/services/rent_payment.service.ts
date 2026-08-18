@@ -170,30 +170,66 @@ export const updateRentPayment = async (
   }
 };
 
-export const getAllRentPayments = async () => {
-  try {
-    const payments = await paymentRepo.find({
-      relations: {
-        tenant: {
-          user: true,
-          pg: true,
-          room: true,
-        },
-      },
-      order: {
-        dueDate: "DESC",
-      },
-    });
+export const getAllRentPayments = async (
+  page: number = 1,
+  limit: number = 5,
+  search: string = "",
+  sortBy: string = "dueDate",
+  sortOrder: string = "DESC",
+) => {
+  const query = paymentRepo
+    .createQueryBuilder("payment")
+    .leftJoinAndSelect("payment.tenant", "tenant")
+    .leftJoinAndSelect("tenant.user", "user")
+    .leftJoinAndSelect("tenant.pg", "pg")
+    .leftJoinAndSelect("tenant.room", "room");
 
-    return payments;
-  } catch (error) {
-    throw new GraphQLError("Failed to fetch rent payments");
+  if (search) {
+    query.where(
+      "user.name ILIKE :search OR pg.name ILIKE :search OR CAST(room.roomNo AS TEXT) ILIKE :search",
+      {
+        search: `%${search}%`,
+      },
+    );
   }
+
+  const allowedSortFields: Record<string, string> = {
+    tenant: "user.name",
+    pg: "pg.name",
+    room: "room.roomNo",
+    month: "payment.month",
+    year: "payment.year",
+    amount: "payment.amount",
+    paidAmount: "payment.paidAmount",
+    dueDate: "payment.dueDate",
+    status: "payment.status",
+    createdAt: "payment.createdAt",
+  };
+
+  const orderColumn = allowedSortFields[sortBy] ?? "payment.dueDate";
+  const orderDirection = sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+  query
+    .orderBy(orderColumn, orderDirection)
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [items, total] = await query.getManyAndCount();
+
+  return {
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 export const getAdminRentSummary = async (
   month: string,
   year: number,
+  page: number = 1,
+  limit: number = 6,
 ) => {
   try {
     const pgs = await pgRepo.find({
@@ -214,35 +250,26 @@ export const getAdminRentSummary = async (
       },
     });
 
-    return pgs.map((pg) => {
+    const summaries = pgs.map((pg) => {
       const totalRooms = pg.rooms.length;
 
       const occupiedRooms = pg.rooms.filter(
         (room) => room.occupiedNo > 0,
       ).length;
 
-      const totalRent = pg.rooms.reduce(
-        (total, room) => {
-          return total + Number(room.monthlyRent) * room.occupiedNo;
-        },
-        0,
-      );
+      const totalRent = pg.rooms.reduce((total, room) => {
+        return total + Number(room.monthlyRent) * room.occupiedNo;
+      }, 0);
 
       const pgPayments = payments.filter(
         (payment) => payment.tenant.pgId === pg.id,
       );
 
-      const paidRent = pgPayments.reduce(
-        (total, payment) => {
-          return total + Number(payment.paidAmount);
-        },
-        0,
-      );
+      const paidRent = pgPayments.reduce((total, payment) => {
+        return total + Number(payment.paidAmount);
+      }, 0);
 
-      const dueRent = Math.max(
-        totalRent - paidRent,
-        0,
-      );
+      const dueRent = Math.max(totalRent - paidRent, 0);
 
       return {
         pgId: pg.id,
@@ -254,9 +281,23 @@ export const getAdminRentSummary = async (
         dueRent,
       };
     });
-  } catch (error) {
-    throw new GraphQLError(
-      "Failed to fetch rent summary",
+
+    const total = summaries.length;
+    const totalPages = Math.ceil(total / limit);
+
+    const items = summaries.slice(
+      (page - 1) * limit,
+      page * limit,
     );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch rent summary");
   }
 };

@@ -59,16 +59,38 @@ export interface AdminRentPayment {
 }
 
 export interface GetAdminRentSummaryResponse {
-  getAdminRentSummary: AdminRentSummary[];
+  getAdminRentSummary: {
+    items: AdminRentSummary[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface GetAdminRentSummaryVariables {
   month: string;
   year: number;
+  page: number;
+  limit: number;
 }
 
 export interface GetAllRentPaymentsResponse {
-  getAllRentPayments: AdminRentPayment[];
+  getAllRentPayments: {
+    items: AdminRentPayment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface GetAllRentPaymentsVariables {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 export interface UpdateRentPaymentInput {

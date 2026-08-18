@@ -9,33 +9,45 @@ import type {
 } from "../types/PgManagement.types";
 
 export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
-  GetAllPgsRoomsResponse
+  GetAllPgsRoomsResponse,
+  {
+    input: {
+      page: number;
+      limit: number;
+    };
+  }
 > = gql`
-  query GetAllPgsRooms {
-    getAllPgsRooms {
-      id
-      name
-      address
-      city
-      state
-      pincode
-      contactNo
-      description
-      isActive
-      createdAt
-      updatedAt
-      rooms {
+  query GetAllPgsRooms($input: PgPaginationInput) {
+    getAllPgsRooms(input: $input) {
+      items {
         id
-        pgId
-        roomNo
-        floor
-        capacity
-        occupiedNo
-        monthlyRent
-        status
+        name
+        address
+        city
+        state
+        pincode
+        contactNo
+        description
+        isActive
         createdAt
         updatedAt
+        rooms {
+          id
+          pgId
+          roomNo
+          floor
+          capacity
+          occupiedNo
+          monthlyRent
+          status
+          createdAt
+          updatedAt
+        }
       }
+      total
+      page
+      limit
+      totalPages
     }
   }
 `;

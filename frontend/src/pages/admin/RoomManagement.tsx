@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import {
@@ -14,28 +14,22 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
+  Pagination,
   TextField,
   Typography,
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import SearchIcon from "@mui/icons-material/Search";
 
 import {
-  GET_ALL_PGS_ROOMS,
+  GET_ALL_ROOMS,
   CREATE_ROOM,
   UPDATE_ROOM,
-} from "../../graphql/RoomManagement.api";
+} from "../../graphql/roomManagement.api";
 
-import type {
-  Room,
-} from "../../types/RoomManagement.types";
-
-interface PgOption {
-  id: string;
-  name: string;
-  rooms: Room[];
-}
+import type { Room } from "../../types/RoomManagement.types";
 
 interface RoomForm {
   pgId: string;
@@ -45,10 +39,6 @@ interface RoomForm {
   occupiedNo: string;
   monthlyRent: string;
   status: string;
-}
-
-interface RoomWithPgName extends Room {
-  pgName: string;
 }
 
 const emptyForm: RoomForm = {
@@ -66,20 +56,36 @@ const RoomManagement = () => {
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
 
-  const { data, loading, error } = useQuery(GET_ALL_PGS_ROOMS);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const limit = 9;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, loading, error } = useQuery(GET_ALL_ROOMS, {
+    variables: {
+      page,
+      limit,
+      search: debouncedSearch,
+    },
+  });
+  console.log(data?.getAllRooms);
 
   const [createRoom, { loading: creating }] = useMutation(CREATE_ROOM);
 
   const [updateRoom, { loading: updating }] = useMutation(UPDATE_ROOM);
 
-  const pgs: PgOption[] = data?.getAllPgsRooms ?? [];
-
-  const rooms: RoomWithPgName[] = pgs.flatMap((pg) =>
-    pg.rooms.map((room) => ({
-      ...room,
-      pgName: pg.name,
-    })),
-  );
+  const rooms = data?.getAllRooms.items ?? [];
+  const totalPages = data?.getAllRooms.totalPages ?? 1;
 
   const handleCreate = () => {
     setEditingRoom(null);
@@ -93,7 +99,7 @@ const RoomManagement = () => {
     setForm({
       pgId: room.pgId,
       roomNo: String(room.roomNo),
-      floor: String(room.floor),
+      floor: room.floor === null ? "" : String(room.floor),
       capacity: String(room.capacity),
       occupiedNo: String(room.occupiedNo),
       monthlyRent: String(room.monthlyRent),
@@ -128,7 +134,16 @@ const RoomManagement = () => {
               status: form.status,
             },
           },
-          refetchQueries: [GET_ALL_PGS_ROOMS],
+          refetchQueries: [
+            {
+              query: GET_ALL_ROOMS,
+              variables: {
+                page,
+                limit,
+                search: debouncedSearch,
+              },
+            },
+          ],
         });
       } else {
         await createRoom({
@@ -142,7 +157,16 @@ const RoomManagement = () => {
               monthlyRent: Number(form.monthlyRent),
             },
           },
-          refetchQueries: [GET_ALL_PGS_ROOMS],
+          refetchQueries: [
+            {
+              query: GET_ALL_ROOMS,
+              variables: {
+                page,
+                limit,
+                search: debouncedSearch,
+              },
+            },
+          ],
         });
       }
 
@@ -153,7 +177,7 @@ const RoomManagement = () => {
   };
 
   if (loading) {
-    return <CircularProgress/>
+    return <CircularProgress />;
   }
 
   if (error) {
@@ -184,10 +208,48 @@ const RoomManagement = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleCreate}
-          sx={{bgcolor:"#5B21B6" }}
+          sx={{
+            bgcolor: "#5B21B6",
+            "&:hover": {
+              bgcolor: "#4C1D95",
+            },
+          }}
         >
           Add Room
         </Button>
+      </Box>
+
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          size="small"
+          label="Search rooms"
+          placeholder="Room number or PG name"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: <SearchIcon sx={{ mr: 1, color: "#777" }} />,
+            },
+          }}
+          sx={{
+            width: {
+              xs: "100%",
+              sm: "360px",
+            },
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "10px",
+              "&:hover fieldset": {
+                borderColor: "#5B21B6",
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: "#5B21B6",
+              },
+            },
+            "& .MuiInputLabel-root.Mui-focused": {
+              color: "#5B21B6",
+            },
+          }}
+        />
       </Box>
 
       <Box
@@ -223,9 +285,9 @@ const RoomManagement = () => {
                 />
               </Box>
 
-              <Typography sx={{ mb: 1 }}>PG: {room.pgName}</Typography>
+              <Typography sx={{ mb: 1 }}>PG: {room.pg?.name ?? "-"}</Typography>
 
-              <Typography sx={{ mb: 1 }}>Floor: {room.floor}</Typography>
+              <Typography sx={{ mb: 1 }}>Floor: {room.floor ?? "-"}</Typography>
 
               <Typography sx={{ mb: 1 }}>Capacity: {room.capacity}</Typography>
 
@@ -260,6 +322,33 @@ const RoomManagement = () => {
         </Box>
       )}
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mt: 8,
+        }}
+      >
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(_, value) => setPage(value)}
+          size="large"
+          sx={{
+            "& .MuiPaginationItem-root": {
+              color: "#5B21B6",
+            },
+            "& .MuiPaginationItem-root.Mui-selected": {
+              backgroundColor: "#5B21B6",
+              color: "#FFFFFF",
+            },
+            "& .MuiPaginationItem-root.Mui-selected:hover": {
+              backgroundColor: "#4C1D95",
+            },
+          }}
+        />
+      </Box>
+
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle>{editingRoom ? "Edit Room" : "Add New Room"}</DialogTitle>
 
@@ -279,11 +368,7 @@ const RoomManagement = () => {
               disabled={Boolean(editingRoom)}
               onChange={(e) => handleChange("pgId", e.target.value)}
             >
-              {pgs.map((pg) => (
-                <MenuItem key={pg.id} value={pg.id}>
-                  {pg.name}
-                </MenuItem>
-              ))}
+              <MenuItem value={form.pgId}>{form.pgId}</MenuItem>
             </TextField>
 
             <Box
@@ -355,13 +440,20 @@ const RoomManagement = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleClose} sx={{color:"#5B21B6" }}>Cancel</Button>
+          <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
+            Cancel
+          </Button>
 
           <Button
             variant="contained"
             onClick={handleSubmit}
             disabled={creating || updating}
-            sx={{bgcolor:"#5B21B6" }}
+            sx={{
+              bgcolor: "#5B21B6",
+              "&:hover": {
+                bgcolor: "#4C1D95",
+              },
+            }}
           >
             {creating || updating
               ? "Saving..."

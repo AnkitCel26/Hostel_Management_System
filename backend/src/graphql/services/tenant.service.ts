@@ -7,7 +7,7 @@ import { Room, RoomStatus } from "../../entities/room.entity.js";
 import { RentPayment } from "../../entities/rent_payment.entity.ts";
 
 const tenantRepo = AppDataSource.getRepository(Tenant);
-// const paymentRepo = AppDataSource.getRepository(RentPayment);
+
 
 export const createTenant = async (
   userId: string,
@@ -197,9 +197,12 @@ export const updateTenant = async (
 };
 
 
-export const getAllTenants = async () => {
+export const getAllTenants = async (
+  page: number = 1,
+  limit: number = 10,
+) => {
   try {
-    const tenants = await tenantRepo.find({
+    const [items, total] = await tenantRepo.findAndCount({
       relations: {
         user: true,
         pg: true,
@@ -208,9 +211,17 @@ export const getAllTenants = async () => {
       order: {
         joiningDate: "DESC",
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return tenants;
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   } catch (error) {
     console.error("Failed to fetch tenants:", error);
 

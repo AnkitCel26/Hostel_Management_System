@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import {
@@ -12,12 +12,14 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Pagination,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from "@mui/material";
@@ -36,9 +38,23 @@ import type {
   PaymentMode,
 } from "../../types/PaymentManagement.types";
 
+type SortOrder = "ASC" | "DESC";
+
 const PaymentManagement = () => {
   const [month, setMonth] = useState("August");
   const [year, setYear] = useState(2026);
+
+  const [summaryPage, setSummaryPage] = useState(1);
+  const summaryLimit = 6;
+
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const [sortBy, setSortBy] = useState("tenant");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("ASC");
 
   const [open, setOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] =
@@ -48,6 +64,19 @@ const PaymentManagement = () => {
   const [paymentDate, setPaymentDate] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setSummaryPage(1);
+  }, [month, year]);
+
   const {
     data: summaryData,
     loading: summaryLoading,
@@ -56,6 +85,8 @@ const PaymentManagement = () => {
     variables: {
       month,
       year,
+      page: summaryPage,
+      limit: summaryLimit,
     },
   });
 
@@ -63,38 +94,79 @@ const PaymentManagement = () => {
     data: paymentData,
     loading: paymentLoading,
     error: paymentError,
-  } = useQuery(GET_ALL_RENT_PAYMENTS);
+  } = useQuery(GET_ALL_RENT_PAYMENTS, {
+    variables: {
+      page,
+      limit,
+      search: debouncedSearch,
+      sortBy,
+      sortOrder,
+    },
+    fetchPolicy: "cache-and-network",
+  });
 
   const [updateRentPayment, { loading: updating }] =
     useMutation(UPDATE_RENT_PAYMENT);
 
-  const summaries: AdminRentSummary[] = summaryData?.getAdminRentSummary ?? [];
+  const summaries: AdminRentSummary[] =
+    summaryData?.getAdminRentSummary.items ?? [];
 
-  const payments: AdminRentPayment[] = paymentData?.getAllRentPayments ?? [];
+  const summaryTotalPages =
+    summaryData?.getAdminRentSummary.totalPages ?? 0;
 
-  const totalRooms = summaries.reduce((total, pg) => total + pg.totalRooms, 0);
+  const payments: AdminRentPayment[] =
+    paymentData?.getAllRentPayments.items ?? [];
+
+  const totalPages =
+    paymentData?.getAllRentPayments.totalPages ?? 0;
+
+  const totalRooms = summaries.reduce(
+    (total, pg) => total + pg.totalRooms,
+    0,
+  );
 
   const occupiedRooms = summaries.reduce(
     (total, pg) => total + pg.occupiedRooms,
     0,
   );
 
-  const totalRent = summaries.reduce((total, pg) => total + pg.totalRent, 0);
+  const totalRent = summaries.reduce(
+    (total, pg) => total + pg.totalRent,
+    0,
+  );
 
-  const paidRent = summaries.reduce((total, pg) => total + pg.paidRent, 0);
+  const paidRent = summaries.reduce(
+    (total, pg) => total + pg.paidRent,
+    0,
+  );
 
-  const dueRent = summaries.reduce((total, pg) => total + pg.dueRent, 0);
+  const dueRent = summaries.reduce(
+    (total, pg) => total + pg.dueRent,
+    0,
+  );
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder((previous) =>
+        previous === "ASC" ? "DESC" : "ASC",
+      );
+    } else {
+      setSortBy(field);
+      setSortOrder("ASC");
+    }
+
+    setPage(1);
+  };
 
   const handleEdit = (payment: AdminRentPayment) => {
     setSelectedPayment(payment);
-
     setPaidAmount("");
     setPaymentDate(
-      payment.paymentDate ? payment.paymentDate.substring(0, 10) : "",
+      payment.paymentDate
+        ? payment.paymentDate.substring(0, 10)
+        : "",
     );
-
     setPaymentMode(payment.paymentMode ?? "cash");
-
     setOpen(true);
   };
 
@@ -122,12 +194,23 @@ const PaymentManagement = () => {
           },
         },
         refetchQueries: [
-          GET_ALL_RENT_PAYMENTS,
+          {
+            query: GET_ALL_RENT_PAYMENTS,
+            variables: {
+              page,
+              limit,
+              search: debouncedSearch,
+              sortBy,
+              sortOrder,
+            },
+          },
           {
             query: GET_ADMIN_RENT_SUMMARY,
             variables: {
               month,
               year,
+              page: summaryPage,
+              limit: summaryLimit,
             },
           },
         ],
@@ -233,7 +316,6 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Total Rooms</Typography>
-
             <Typography
               variant="h5"
               sx={{
@@ -249,7 +331,6 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Occupied Rooms</Typography>
-
             <Typography
               variant="h5"
               sx={{
@@ -265,7 +346,6 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Expected Rent</Typography>
-
             <Typography
               variant="h5"
               sx={{
@@ -281,7 +361,6 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Collected</Typography>
-
             <Typography
               variant="h5"
               sx={{
@@ -298,7 +377,6 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Due</Typography>
-
             <Typography
               variant="h5"
               sx={{
@@ -332,7 +410,7 @@ const PaymentManagement = () => {
             lg: "repeat(3, 1fr)",
           },
           gap: "16px",
-          marginBottom: "32px",
+          marginBottom: "16px",
         }}
       >
         {summaries.map((pg) => (
@@ -369,11 +447,7 @@ const PaymentManagement = () => {
                 Collected: ₹{pg.paidRent.toLocaleString()}
               </Typography>
 
-              <Typography
-                sx={{
-                  color: "#d32f2f",
-                }}
-              >
+              <Typography sx={{ color: "#d32f2f" }}>
                 Due: ₹{pg.dueRent.toLocaleString()}
               </Typography>
             </CardContent>
@@ -381,28 +455,172 @@ const PaymentManagement = () => {
         ))}
       </Box>
 
-      <Typography
-        variant="h5"
+      {summaryTotalPages > 1 && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: "32px",
+          }}
+        >
+          <Pagination
+            count={summaryTotalPages}
+            page={summaryPage}
+            onChange={(_, value) => setSummaryPage(value)}
+            color="primary"
+            sx={{
+              "& .MuiPaginationItem-root": {
+                color: "#5B21B6",
+              },
+              "& .MuiPaginationItem-root.Mui-selected": {
+                backgroundColor: "#5B21B6",
+                color: "#fff",
+              },
+              "& .MuiPaginationItem-root.Mui-selected:hover": {
+                backgroundColor: "#4C1D95",
+              },
+            }}
+          />
+        </Box>
+      )}
+
+      <Box
         sx={{
-          fontWeight: 600,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: "16px",
+          gap: 2,
         }}
       >
-        Payment History
-      </Typography>
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+          }}
+        >
+          Payment History
+        </Typography>
+
+        <TextField
+          size="small"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search tenant, PG or room"
+          sx={{
+            width: "320px",
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "10px",
+              backgroundColor: "#fff",
+            },
+          }}
+        />
+      </Box>
 
       <TableContainer component={Card}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Tenant</TableCell>
-              <TableCell>PG</TableCell>
-              <TableCell>Room</TableCell>
-              <TableCell>Month</TableCell>
-              <TableCell>Rent</TableCell>
-              <TableCell>Paid</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "tenant"}
+                  direction={
+                    sortBy === "tenant"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("tenant")}
+                >
+                  Tenant
+                </TableSortLabel>
+              </TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "pg"}
+                  direction={
+                    sortBy === "pg"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("pg")}
+                >
+                  PG
+                </TableSortLabel>
+              </TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "room"}
+                  direction={
+                    sortBy === "room"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("room")}
+                >
+                  Room
+                </TableSortLabel>
+              </TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "month"}
+                  direction={
+                    sortBy === "month"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("month")}
+                >
+                  Month
+                </TableSortLabel>
+              </TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "amount"}
+                  direction={
+                    sortBy === "amount"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("amount")}
+                >
+                  Rent
+                </TableSortLabel>
+              </TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "paidAmount"}
+                  direction={
+                    sortBy === "paidAmount"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("paidAmount")}
+                >
+                  Paid
+                </TableSortLabel>
+              </TableCell>
+
               <TableCell>Due</TableCell>
-              <TableCell>Status</TableCell>
+
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "status"}
+                  direction={
+                    sortBy === "status"
+                      ? (sortOrder.toLowerCase() as "asc" | "desc")
+                      : "asc"
+                  }
+                  onClick={() => handleSort("status")}
+                >
+                  Status
+                </TableSortLabel>
+              </TableCell>
+
               <TableCell>Action</TableCell>
             </TableRow>
           </TableHead>
@@ -416,13 +634,19 @@ const PaymentManagement = () => {
               </TableRow>
             ) : (
               payments.map((payment) => {
-                const due = Number(payment.amount) - Number(payment.paidAmount);
+                const due =
+                  Number(payment.amount) -
+                  Number(payment.paidAmount);
 
                 return (
                   <TableRow key={payment.id}>
-                    <TableCell>{payment.tenant.user.name}</TableCell>
+                    <TableCell>
+                      {payment.tenant.user.name}
+                    </TableCell>
 
-                    <TableCell>{payment.tenant.pg.name}</TableCell>
+                    <TableCell>
+                      {payment.tenant.pg.name}
+                    </TableCell>
 
                     <TableCell>
                       {payment.tenant.room
@@ -442,7 +666,9 @@ const PaymentManagement = () => {
                       ₹{Number(payment.paidAmount).toLocaleString()}
                     </TableCell>
 
-                    <TableCell>₹{due.toLocaleString()}</TableCell>
+                    <TableCell>
+                      ₹{due.toLocaleString()}
+                    </TableCell>
 
                     <TableCell>
                       <Chip
@@ -488,26 +714,74 @@ const PaymentManagement = () => {
               })
             )}
           </TableBody>
+
+          {totalPages >= 1 && (
+            <TableBody>
+              <TableRow>
+                <TableCell colSpan={9}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      py: 1,
+                    }}
+                  >
+                    <Pagination
+                      count={totalPages}
+                      page={page}
+                      onChange={(_, value) => setPage(value)}
+                      color="primary"
+                      sx={{
+                        "& .MuiPaginationItem-root": {
+                          color: "#5B21B6",
+                        },
+                        "& .MuiPaginationItem-root.Mui-selected": {
+                          backgroundColor: "#5B21B6",
+                          color: "#fff",
+                        },
+                        "& .MuiPaginationItem-root.Mui-selected:hover": {
+                          backgroundColor: "#4C1D95",
+                        },
+                      }}
+                    />
+                  </Box>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          )}
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Update Rent Payment</DialogTitle>
 
         <DialogContent>
           {selectedPayment && (
             <Box sx={{ marginTop: "8px" }}>
               <Typography sx={{ marginBottom: "16px" }}>
-                Tenant: <strong>{selectedPayment.tenant.user.name}</strong>
+                Tenant:{" "}
+                <strong>
+                  {selectedPayment.tenant.user.name}
+                </strong>
               </Typography>
 
               <Typography sx={{ marginBottom: "16px" }}>
-                Rent Amount: ₹{Number(selectedPayment.amount).toLocaleString()}
+                Rent Amount: ₹
+                {Number(
+                  selectedPayment.amount,
+                ).toLocaleString()}
               </Typography>
 
               <Typography sx={{ marginBottom: "16px" }}>
                 Already Paid: ₹
-                {Number(selectedPayment.paidAmount).toLocaleString()}
+                {Number(
+                  selectedPayment.paidAmount,
+                ).toLocaleString()}
               </Typography>
 
               <TextField
@@ -515,7 +789,9 @@ const PaymentManagement = () => {
                 type="number"
                 fullWidth
                 value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
+                onChange={(e) =>
+                  setPaidAmount(e.target.value)
+                }
                 sx={{ marginBottom: "16px" }}
               />
 
@@ -524,7 +800,9 @@ const PaymentManagement = () => {
                 type="date"
                 fullWidth
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
+                onChange={(e) =>
+                  setPaymentDate(e.target.value)
+                }
                 slotProps={{
                   inputLabel: {
                     shrink: true,
@@ -538,12 +816,14 @@ const PaymentManagement = () => {
                 label="Payment Mode"
                 fullWidth
                 value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                onChange={(e) =>
+                  setPaymentMode(
+                    e.target.value as PaymentMode,
+                  )
+                }
               >
                 <MenuItem value="cash">Cash</MenuItem>
-
                 <MenuItem value="upi">UPI</MenuItem>
-
                 <MenuItem value="card">Card</MenuItem>
               </TextField>
             </Box>
@@ -551,14 +831,21 @@ const PaymentManagement = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
+          <Button
+            onClick={handleClose}
+            sx={{ color: "#5B21B6" }}
+          >
             Cancel
           </Button>
 
           <Button
             variant="contained"
             onClick={handleUpdate}
-            disabled={updating || !paidAmount || !paymentDate}
+            disabled={
+              updating ||
+              !paidAmount ||
+              !paymentDate
+            }
             sx={{ bgcolor: "#5B21B6" }}
           >
             {updating ? "Updating..." : "Update Payment"}

@@ -1,21 +1,21 @@
 import { gql, type TypedDocumentNode } from "@apollo/client";
 
 import type {
-  GetAllPgsRoomsResponse,
   CreateRoomResponse,
   CreateRoomVariables,
+  GetAllRoomsResponse,
+  GetAllRoomsVariables,
   UpdateRoomResponse,
   UpdateRoomVariables,
 } from "../types/RoomManagement.types";
 
-export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
-  GetAllPgsRoomsResponse
+export const GET_ALL_ROOMS: TypedDocumentNode<
+  GetAllRoomsResponse,
+  GetAllRoomsVariables
 > = gql`
-  query GetAllPgsRooms {
-    getAllPgsRooms {
-      id
-      name
-      rooms {
+  query GetAllRooms($page: Int!, $limit: Int!, $search: String) {
+    getAllRooms(page: $page, limit: $limit, search: $search) {
+      items {
         id
         pgId
         roomNo
@@ -26,7 +26,15 @@ export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
         status
         createdAt
         updatedAt
+        pg {
+          id
+          name
+        }
       }
+      total
+      page
+      limit
+      totalPages
     }
   }
 `;
@@ -58,14 +66,8 @@ export const UPDATE_ROOM: TypedDocumentNode<
   UpdateRoomResponse,
   UpdateRoomVariables
 > = gql`
-  mutation UpdateRoom(
-    $roomId: String!
-    $input: UpdateRoomInput!
-  ) {
-    updateRoom(
-      roomId: $roomId
-      input: $input
-    ) {
+  mutation UpdateRoom($roomId: String!, $input: UpdateRoomInput!) {
+    updateRoom(roomId: $roomId, input: $input) {
       message
       room {
         id

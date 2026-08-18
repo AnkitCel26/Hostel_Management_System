@@ -21,8 +21,7 @@ export const createAnnouncement = async (
   }
 
   return AppDataSource.transaction(async (manager) => {
-    const announcementRepo =
-      manager.getRepository(Announcement);
+    const announcementRepo = manager.getRepository(Announcement);
 
     const announcement = announcementRepo.create({
       pgId,
@@ -31,18 +30,16 @@ export const createAnnouncement = async (
       content,
     });
 
-    const savedAnnouncement =
-      await announcementRepo.save(announcement);
+    const savedAnnouncement = await announcementRepo.save(announcement);
 
-    const announcementWithPg =
-      await announcementRepo.findOne({
-        where: {
-          id: savedAnnouncement.id,
-        },
-        relations: {
-          pg: true,
-        },
-      });
+    const announcementWithPg = await announcementRepo.findOne({
+      where: {
+        id: savedAnnouncement.id,
+      },
+      relations: {
+        pg: true,
+      },
+    });
 
     if (!announcementWithPg) {
       throw new GraphQLError("Announcement not found");
@@ -61,14 +58,11 @@ export const updateAnnouncement = async (
 ) => {
   try {
     if (!announcementId || isActive === undefined) {
-      throw new GraphQLError(
-        "Announcement ID and status are required",
-      );
+      throw new GraphQLError("Announcement ID and status are required");
     }
 
     return await AppDataSource.transaction(async (manager) => {
-      const announcementRepo =
-        manager.getRepository(Announcement);
+      const announcementRepo = manager.getRepository(Announcement);
 
       const announcement = await announcementRepo.findOne({
         where: {
@@ -82,18 +76,16 @@ export const updateAnnouncement = async (
 
       announcement.isActive = isActive;
 
-      const updatedAnnouncement =
-        await announcementRepo.save(announcement);
+      const updatedAnnouncement = await announcementRepo.save(announcement);
 
-      const announcementWithPg =
-        await announcementRepo.findOne({
-          where: {
-            id: updatedAnnouncement.id,
-          },
-          relations: {
-            pg: true,
-          },
-        });
+      const announcementWithPg = await announcementRepo.findOne({
+        where: {
+          id: updatedAnnouncement.id,
+        },
+        relations: {
+          pg: true,
+        },
+      });
 
       if (!announcementWithPg) {
         throw new GraphQLError("Announcement not found");
@@ -105,9 +97,7 @@ export const updateAnnouncement = async (
       };
     });
   } catch (error) {
-    throw new GraphQLError(
-      "Failed to update announcement",
-    );
+    throw new GraphQLError("Failed to update announcement");
   }
 };
 
@@ -143,18 +133,26 @@ export const getTenantPgAnnouncements = async (userId: string) => {
   }
 };
 
-export const getAllAnnouncements = async () => {
+export const getAllAnnouncements = async (page: number, limit: number) => {
   try {
-    const announcements = await announcementRepo.find({
+    const [items, total] = await announcementRepo.findAndCount({
       relations: {
         pg: true,
       },
       order: {
         createdAt: "DESC",
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return announcements;
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   } catch (error) {
     throw new GraphQLError("Failed to fetch announcements");
   }

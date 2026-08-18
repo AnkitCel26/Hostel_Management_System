@@ -2,63 +2,79 @@ import { gql } from "@apollo/client";
 import type { TypedDocumentNode } from "@apollo/client";
 import type {
   GetAllComplaintsQuery,
+  GetAllComplaintsQueryVariables,
   UpdateComplaintMutation,
   UpdateComplaintMutationVariables,
 } from "../types/ComplaintManagement.types";
 
 export const GET_ALL_COMPLAINTS: TypedDocumentNode<
-  GetAllComplaintsQuery
+  GetAllComplaintsQuery,
+  GetAllComplaintsQueryVariables
 > = gql`
-  query GetAllComplaints {
-    getAllComplaints {
-      id
-      tenantId
-      pgId
-      title
-      description
-      status
-      documentUrl
-      createdAt
-      updatedAt
-      resolvedAt
-      tenant {
+  query GetAllComplaints(
+    $page: Int!
+    $limit: Int!
+    $search: String
+  ) {
+    getAllComplaints(
+      page: $page
+      limit: $limit
+      search: $search
+    ) {
+      items {
         id
-        user {
+        tenantId
+        pgId
+        title
+        description
+        status
+        documentUrl
+        createdAt
+        updatedAt
+        resolvedAt
+        tenant {
           id
-          name
-          email
-          role
-          phone
-          isActive
-          createdAt
-          updatedAt
-        }
-        pg {
-          id
-          name
-          address
-          city
-          state
-          pincode
-          contactNo
-          description
-          isActive
-          createdAt
-          updatedAt
-        }
-        room {
-          id
-          pgId
-          roomNo
-          floor
-          capacity
-          occupiedNo
-          monthlyRent
-          status
-          createdAt
-          updatedAt
+          user {
+            id
+            name
+            email
+            role
+            phone
+            isActive
+            createdAt
+            updatedAt
+          }
+          pg {
+            id
+            name
+            address
+            city
+            state
+            pincode
+            contactNo
+            description
+            isActive
+            createdAt
+            updatedAt
+          }
+          room {
+            id
+            pgId
+            roomNo
+            floor
+            capacity
+            occupiedNo
+            monthlyRent
+            status
+            createdAt
+            updatedAt
+          }
         }
       }
+      total
+      page
+      limit
+      totalPages
     }
   }
 `;

@@ -59,7 +59,13 @@ export interface UpdatePgVariables {
 }
 
 export interface GetAllPgsRoomsResponse {
-  getAllPgsRooms: AllPgs[];
+  getAllPgsRooms: {
+    items: AllPgs[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface CreatePgResponse {

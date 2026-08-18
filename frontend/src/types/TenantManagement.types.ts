@@ -44,8 +44,16 @@ export interface AllTenant {
   room: TenantRoom | null;
 }
 
+export interface TenantPaginationResponse {
+  items: AllTenant[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface GetAllTenantsResponse {
-  getAllTenants: AllTenant[];
+  getAllTenants: TenantPaginationResponse;
 }
 
 export interface CreateTenantInput {

@@ -6,8 +6,3 @@ export interface User {
   phone: string;
   isActive: boolean;
 }
-
-export interface UserContextType {
-  user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;
-}

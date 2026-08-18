@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useQuery } from "@apollo/client/react";
 import {
   Alert,
@@ -44,52 +44,34 @@ const AdminDashboard = () => {
     );
   }
 
-  const users = data?.allUsers ?? [];
-  const pgs = data?.getAllPgsRooms ?? [];
+  const statsData = data?.getAdminDashboardStats;
 
-  const tenants = users.filter((user) => user.role === "tenant");
+  const totalPgs = statsData?.totalPgs ?? 0;
+  const activePgs = statsData?.activePgs ?? 0;
+  const totalRooms = statsData?.totalRooms ?? 0;
+  const totalTenants = statsData?.totalTenants ?? 0;
+  const occupiedBeds = statsData?.occupiedBeds ?? 0;
+  const availableBeds = statsData?.availableBeds ?? 0;
+  const fullRooms = statsData?.fullRooms ?? 0;
+  const availableRooms = statsData?.availableRooms ?? 0;
 
-  const rooms = pgs.flatMap((pg) => pg.rooms);
-
-  const totalCapacity = rooms.reduce(
-    (total, room) => total + room.capacity,
-    0,
-  );
-
-  const occupiedBeds = rooms.reduce(
-    (total, room) => total + room.occupiedNo,
-    0,
-  );
-
-  const availableBeds = Math.max(totalCapacity - occupiedBeds, 0);
+  const totalCapacity = occupiedBeds + availableBeds;
 
   const occupancy =
-    totalCapacity > 0
-      ? Math.round((occupiedBeds / totalCapacity) * 100)
-      : 0;
-
-  const availableRooms = rooms.filter(
-    (room) => room.status === "available",
-  ).length;
-
-  const fullRooms = rooms.filter(
-    (room) => room.status === "full",
-  ).length;
-
-  const activePgs = pgs.filter((pg) => pg.isActive).length;
+    totalCapacity > 0 ? Math.round((occupiedBeds / totalCapacity) * 100) : 0;
 
   const stats = [
     {
       title: "Total PGs",
-      value: pgs.length,
+      value: totalPgs,
     },
     {
       title: "Total Rooms",
-      value: rooms.length,
+      value: totalRooms,
     },
     {
       title: "Total Tenants",
-      value: tenants.length,
+      value: totalTenants,
     },
     {
       title: "Occupied Beds",
@@ -180,9 +162,7 @@ const AdminDashboard = () => {
                     justifyContent: "space-between",
                   }}
                 >
-                  <Typography variant="body2">
-                    Occupied
-                  </Typography>
+                  <Typography variant="body2">Occupied</Typography>
 
                   <Typography variant="body2">
                     {occupiedBeds} / {totalCapacity}
@@ -202,12 +182,21 @@ const AdminDashboard = () => {
                   }}
                 />
 
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                >
+                <Typography variant="body2" color="text.secondary">
                   {occupancy}% occupied
                 </Typography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 1,
+                  }}
+                >
+                  <Typography variant="body2" sx={{fontWeight:600,mt:5,fontSize:20}}>Available Beds</Typography>
+
+                  <Typography variant="body2" sx={{fontWeight:600,mt:5,fontSize:20}}>{availableBeds}</Typography>
+                </Box>
               </Stack>
             </CardContent>
           </Card>
@@ -243,23 +232,13 @@ const AdminDashboard = () => {
                     ],
                     colorMap: {
                       type: "ordinal",
-                      colors: [
-                        "#1976D2",
-                        "#2E7D32",
-                        "#ED6C02",
-                        "#9C27B0",
-                      ],
+                      colors: ["#1976D2", "#2E7D32", "#ED6C02", "#9C27B0"],
                     },
                   },
                 ]}
                 series={[
                   {
-                    data: [
-                      activePgs,
-                      availableRooms,
-                      fullRooms,
-                      availableBeds,
-                    ],
+                    data: [activePgs, availableRooms, fullRooms, availableBeds],
                     label: "Count",
                   },
                 ]}
@@ -289,10 +268,7 @@ const AdminDashboard = () => {
           horizontal: "right",
         }}
       >
-        <Alert
-          severity="error"
-          onClose={() => setSnackbarOpen(false)}
-        >
+        <Alert severity="error" onClose={() => setSnackbarOpen(false)}>
           {error?.message || "Failed to load dashboard"}
         </Alert>
       </Snackbar>

@@ -82,11 +82,20 @@ export const updatePg = async (pgId: string, data: UpdatePgArgs) => {
   }
 };
 
-export const getAllPgsRooms = async () => {
-  const pgs = await pgRepo.find({
+export const getAllPgsRooms = async (input?: {
+  page?: number;
+  limit?: number;
+}) => {
+  const page = Math.max(input?.page ?? 1, 1);
+  const limit = Math.min(Math.max(input?.limit ?? 10, 1), 100);
+
+  const skip = (page - 1) * limit;
+
+  const [pgs, total] = await pgRepo.findAndCount({
     relations: {
       rooms: true,
     },
+
     select: {
       id: true,
       name: true,
@@ -97,8 +106,8 @@ export const getAllPgsRooms = async () => {
       pincode: true,
       contactNo: true,
       isActive: true,
-      createdAt:true,
-      updatedAt:true,
+      createdAt: true,
+      updatedAt: true,
 
       rooms: {
         id: true,
@@ -109,12 +118,26 @@ export const getAllPgsRooms = async () => {
         occupiedNo: true,
         monthlyRent: true,
         status: true,
-        createdAt:true,
-        updatedAt:true
+        createdAt: true,
+        updatedAt: true,
       },
     },
+
+    skip,
+    take: limit,
+
+    order: {
+      createdAt: "DESC",
+    },
   });
-  return pgs;
+
+  return {
+    items: pgs,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 export const getTenantPgRoom = async (userId: string) => {
@@ -152,7 +175,6 @@ export const getTenantPgRoom = async (userId: string) => {
       room: tenant.room,
     };
   } catch (error) {
-
     throw new GraphQLError("Failed to fetch tenant PG and room");
   }
 };

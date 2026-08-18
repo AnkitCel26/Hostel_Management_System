@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Pagination,
   TextField,
   Typography,
 } from "@mui/material";
@@ -52,13 +53,24 @@ const PgManagement = () => {
   const [editingPg, setEditingPg] = useState<AllPgs | null>(null);
   const [form, setForm] = useState<PgForm>(emptyForm);
 
-  const { data, loading, error } = useQuery(GET_ALL_PGS_ROOMS);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(6);
+
+  const { data, loading, error } = useQuery(GET_ALL_PGS_ROOMS, {
+    variables: {
+      input: {
+        page,
+        limit,
+      },
+    },
+  });
 
   const [createPg, { loading: creating }] = useMutation(CREATE_PG);
 
   const [updatePg, { loading: updating }] = useMutation(UPDATE_PG);
 
-  const pgs = data?.getAllPgsRooms ?? [];
+  const pgs = data?.getAllPgsRooms.items ?? [];
+  const totalPages = data?.getAllPgsRooms.totalPages ?? 0;
 
   const handleCreate = () => {
     setEditingPg(null);
@@ -110,14 +122,34 @@ const PgManagement = () => {
               description: form.description,
             },
           },
-          refetchQueries: [GET_ALL_PGS_ROOMS],
+          refetchQueries: [
+            {
+              query: GET_ALL_PGS_ROOMS,
+              variables: {
+                input: {
+                  page,
+                  limit,
+                },
+              },
+            },
+          ],
         });
       } else {
         await createPg({
           variables: {
             input: form,
           },
-          refetchQueries: [GET_ALL_PGS_ROOMS],
+          refetchQueries: [
+            {
+              query: GET_ALL_PGS_ROOMS,
+              variables: {
+                input: {
+                  page,
+                  limit,
+                },
+              },
+            },
+          ],
         });
       }
 
@@ -233,6 +265,33 @@ const PgManagement = () => {
             </CardContent>
           </Card>
         ))}
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mt: 8,
+        }}
+      >
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(_, value) => setPage(value)}
+          size="large"
+          sx={{
+            "& .MuiPaginationItem-root": {
+              color: "#5B21B6",
+            },
+            "& .MuiPaginationItem-root.Mui-selected": {
+              backgroundColor: "#5B21B6",
+              color: "#FFFFFF",
+            },
+            "& .MuiPaginationItem-root.Mui-selected:hover": {
+              backgroundColor: "#4C1D95",
+            },
+          }}
+        />
       </Box>
 
       {pgs.length === 0 && (

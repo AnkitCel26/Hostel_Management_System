@@ -14,6 +14,7 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
+  Pagination,
   TextField,
   Tooltip,
   Typography,
@@ -57,11 +58,19 @@ const TenantManagement = () => {
   const [editingTenant, setEditingTenant] = useState<AllTenant | null>(null);
   const [form, setForm] = useState<TenantForm>(emptyForm);
 
+  const [page, setPage] = useState(1);
+  const limit = 9;
+
   const {
     data: tenantData,
     loading: tenantLoading,
     error: tenantError,
-  } = useQuery(GET_ALL_TENANTS);
+  } = useQuery(GET_ALL_TENANTS, {
+    variables: {
+      page,
+      limit,
+    },
+  });
 
   const { data: userData, loading: userLoading } = useQuery(GET_ALL_USERS);
 
@@ -71,7 +80,9 @@ const TenantManagement = () => {
 
   const [updateTenant, { loading: updating }] = useMutation(UPDATE_TENANT);
 
-  const tenants = tenantData?.getAllTenants ?? [];
+  const tenants = tenantData?.getAllTenants.items ?? [];
+  const totalPages = tenantData?.getAllTenants.totalPages ?? 0;
+
   const users = userData?.allUsers ?? [];
   const pgs = pgData?.getAllPgsRooms ?? [];
 
@@ -153,7 +164,13 @@ const TenantManagement = () => {
         await updateTenant({
           variables,
           refetchQueries: [
-            { query: GET_ALL_TENANTS },
+            {
+              query: GET_ALL_TENANTS,
+              variables: {
+                page,
+                limit,
+              },
+            },
             { query: GET_ALL_PGS_ROOMS },
           ],
         });
@@ -170,7 +187,13 @@ const TenantManagement = () => {
         await createTenant({
           variables,
           refetchQueries: [
-            { query: GET_ALL_TENANTS },
+            {
+              query: GET_ALL_TENANTS,
+              variables: {
+                page,
+                limit,
+              },
+            },
             { query: GET_ALL_PGS_ROOMS },
           ],
         });
@@ -305,6 +328,33 @@ const TenantManagement = () => {
         </Box>
       )}
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mt: 8,
+        }}
+      >
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(_, value) => setPage(value)}
+          size="large"
+          sx={{
+            "& .MuiPaginationItem-root": {
+              color: "#5B21B6",
+            },
+            "& .MuiPaginationItem-root.Mui-selected": {
+              backgroundColor: "#5B21B6",
+              color: "#FFFFFF",
+            },
+            "& .MuiPaginationItem-root.Mui-selected:hover": {
+              backgroundColor: "#4C1D95",
+            },
+          }}
+        />
+      </Box>
+
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle>
           {editingTenant ? "Edit Tenant" : "Add New Tenant"}
@@ -396,7 +446,6 @@ const TenantManagement = () => {
                 onChange={(e) => handleChange("status", e.target.value)}
               >
                 <MenuItem value="active">Active</MenuItem>
-
                 <MenuItem value="inactive">Inactive</MenuItem>
               </TextField>
             )}

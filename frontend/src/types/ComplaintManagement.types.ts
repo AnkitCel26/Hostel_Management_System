@@ -60,7 +60,18 @@ export interface AdminComplaint {
 }
 
 export interface GetAllComplaintsQuery {
-  getAllComplaints: AdminComplaint[];
+  getAllComplaints: {
+    items: AdminComplaint[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+export interface GetAllComplaintsQueryVariables {
+  page: number;
+  limit: number;
+  search?: string;
 }
 
 export interface UpdateComplaintInput {

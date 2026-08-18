@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import {
@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -35,18 +36,47 @@ import type {
 } from "../../types/ComplaintManagement.types";
 
 const ComplaintManagement = () => {
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
   const [open, setOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] =
     useState<AdminComplaint | null>(null);
 
   const [status, setStatus] = useState<ComplaintStatus>("open");
 
-  const { data, loading, error } = useQuery(GET_ALL_COMPLAINTS);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, loading, error } = useQuery(GET_ALL_COMPLAINTS, {
+    variables: {
+      page,
+      limit,
+      search: debouncedSearch,
+    },
+    fetchPolicy: "cache-and-network",
+  });
 
   const [updateComplaint, { loading: updating }] =
     useMutation(UPDATE_COMPLAINT);
 
-  const complaints: AdminComplaint[] = data?.getAllComplaints ?? [];
+  const complaints: AdminComplaint[] =
+    data?.getAllComplaints.items ?? [];
+
+  const totalPages =
+    data?.getAllComplaints.totalPages ?? 0;
+
+  const totalComplaints =
+    data?.getAllComplaints.total ?? 0;
 
   const handleEdit = (complaint: AdminComplaint) => {
     setSelectedComplaint(complaint);
@@ -73,7 +103,16 @@ const ComplaintManagement = () => {
             status,
           },
         },
-        refetchQueries: [GET_ALL_COMPLAINTS],
+        refetchQueries: [
+          {
+            query: GET_ALL_COMPLAINTS,
+            variables: {
+              page,
+              limit,
+              search: debouncedSearch,
+            },
+          },
+        ],
       });
 
       handleClose();
@@ -112,18 +151,42 @@ const ComplaintManagement = () => {
 
   return (
     <Box>
-      <Box sx={{ marginBottom: 3 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 600,
-            marginBottom: 1,
-          }}
-        >
-          Complaints
-        </Typography>
+      <Box
+        sx={{
+          marginBottom: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              marginBottom: 1,
+            }}
+          >
+            Complaints
+          </Typography>
 
-        <Typography>View and manage tenant complaints</Typography>
+          <Typography>View and manage tenant complaints</Typography>
+        </Box>
+
+        <TextField
+          size="small"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search tenant, PG, room or complaint"
+          sx={{
+            width: "320px",
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "10px",
+              backgroundColor: "#fff",
+            },
+          }}
+        />
       </Box>
 
       <Box
@@ -131,6 +194,7 @@ const ComplaintManagement = () => {
           display: "flex",
           gap: 2,
           marginBottom: 3,
+          flexWrap: "wrap",
         }}
       >
         <Card sx={{ width: 180, minHeight: 110 }}>
@@ -144,7 +208,7 @@ const ComplaintManagement = () => {
                 marginTop: 1,
               }}
             >
-              {complaints.length}
+              {totalComplaints}
             </Typography>
           </CardContent>
         </Card>
@@ -162,8 +226,9 @@ const ComplaintManagement = () => {
               }}
             >
               {
-                complaints.filter((complaint) => complaint.status === "open")
-                  .length
+                complaints.filter(
+                  (complaint) => complaint.status === "open",
+                ).length
               }
             </Typography>
           </CardContent>
@@ -238,9 +303,13 @@ const ComplaintManagement = () => {
             ) : (
               complaints.map((complaint) => (
                 <TableRow key={complaint.id}>
-                  <TableCell>{complaint.tenant.user.name}</TableCell>
+                  <TableCell>
+                    {complaint.tenant.user.name}
+                  </TableCell>
 
-                  <TableCell>{complaint.tenant.pg.name}</TableCell>
+                  <TableCell>
+                    {complaint.tenant.pg.name}
+                  </TableCell>
 
                   <TableCell>
                     {complaint.tenant.room
@@ -258,13 +327,17 @@ const ComplaintManagement = () => {
                       size="small"
                       sx={{
                         color: "#FFFFFF",
-                        backgroundColor: getStatusColor(complaint.status),
+                        backgroundColor: getStatusColor(
+                          complaint.status,
+                        ),
                       }}
                     />
                   </TableCell>
 
                   <TableCell>
-                    {new Date(Number(complaint.createdAt)).toLocaleDateString()}
+                    {new Date(
+                      Number(complaint.createdAt),
+                    ).toLocaleDateString()}
                   </TableCell>
 
                   <TableCell>
@@ -301,21 +374,67 @@ const ComplaintManagement = () => {
               ))
             )}
           </TableBody>
+
+          {totalPages >= 1 && (
+            <TableBody>
+              <TableRow>
+                <TableCell colSpan={9}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      py: 1,
+                    }}
+                  >
+                    <Pagination
+                      count={totalPages}
+                      page={page}
+                      onChange={(_, value) => setPage(value)}
+                      color="primary"
+                      sx={{
+                        "& .MuiPaginationItem-root": {
+                          color: "#5B21B6",
+                        },
+                        "& .MuiPaginationItem-root.Mui-selected": {
+                          backgroundColor: "#5B21B6",
+                          color: "#fff",
+                        },
+                        "& .MuiPaginationItem-root.Mui-selected:hover": {
+                          backgroundColor: "#4C1D95",
+                        },
+                      }}
+                    />
+                  </Box>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          )}
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Update Complaint</DialogTitle>
 
         <DialogContent>
           {selectedComplaint && (
             <Box sx={{ marginTop: 1 }}>
               <Typography sx={{ marginBottom: 2 }}>
-                Tenant: <strong>{selectedComplaint.tenant.user.name}</strong>
+                Tenant:{" "}
+                <strong>
+                  {selectedComplaint.tenant.user.name}
+                </strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                PG: <strong>{selectedComplaint.tenant.pg.name}</strong>
+                PG:{" "}
+                <strong>
+                  {selectedComplaint.tenant.pg.name}
+                </strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
@@ -328,11 +447,13 @@ const ComplaintManagement = () => {
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                Title: <strong>{selectedComplaint.title}</strong>
+                Title:{" "}
+                <strong>{selectedComplaint.title}</strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                Description: {selectedComplaint.description}
+                Description:{" "}
+                {selectedComplaint.description}
               </Typography>
 
               <TextField
@@ -340,14 +461,19 @@ const ComplaintManagement = () => {
                 label="Status"
                 fullWidth
                 value={status}
-                onChange={(e) => setStatus(e.target.value as ComplaintStatus)}
+                onChange={(e) =>
+                  setStatus(
+                    e.target.value as ComplaintStatus,
+                  )
+                }
               >
                 <MenuItem value="open">Open</MenuItem>
-
-                <MenuItem value="in_progress">In Progress</MenuItem>
-
-                <MenuItem value="resolved">Resolved</MenuItem>
-
+                <MenuItem value="in_progress">
+                  In Progress
+                </MenuItem>
+                <MenuItem value="resolved">
+                  Resolved
+                </MenuItem>
                 <MenuItem value="closed">Closed</MenuItem>
               </TextField>
             </Box>
@@ -355,7 +481,10 @@ const ComplaintManagement = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
+          <Button
+            onClick={handleClose}
+            sx={{ color: "#5B21B6" }}
+          >
             Cancel
           </Button>
 
@@ -370,7 +499,9 @@ const ComplaintManagement = () => {
               },
             }}
           >
-            {updating ? "Updating..." : "Update Status"}
+            {updating
+              ? "Updating..."
+              : "Update Status"}
           </Button>
         </DialogActions>
       </Dialog>

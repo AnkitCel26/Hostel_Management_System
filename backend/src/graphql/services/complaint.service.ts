@@ -3,7 +3,7 @@ import { AppDataSource } from "../../config/db.js";
 import { Complaint, ComplaintStatus } from "../../entities/complaint.entity.ts";
 import { Tenant } from "../../entities/tenant.entity.ts";
 
-const complaintRepo = AppDataSource.getRepository(Complaint); 
+const complaintRepo = AppDataSource.getRepository(Complaint);
 const tenantRepo = AppDataSource.getRepository(Tenant);
 
 export const createComplaint = async (
@@ -19,7 +19,7 @@ export const createComplaint = async (
 
     const tenant = await tenantRepo.findOne({
       where: {
-        userId: userId
+        userId: userId,
       },
     });
 
@@ -28,7 +28,7 @@ export const createComplaint = async (
     }
 
     const complaint = complaintRepo.create({
-      tenantId:tenant.id,
+      tenantId: tenant.id,
       pgId: tenant.pgId,
       title,
       description,
@@ -113,28 +113,51 @@ export const getTenantComplaints = async (userId: string) => {
 
     return complaints;
   } catch (error) {
-
     throw new GraphQLError("Failed to fetch complaints");
   }
 };
 
-export const getAllComplaints = async () => {
+export const getAllComplaints = async (
+  page: number,
+  limit: number,
+  search?: string,
+) => {
   try {
-    const complaints = await complaintRepo.find({
-      relations: {
-        tenant: {
-          user: true,
-          pg: true,
-          room: true,
-        },
-        pg: true,
-      },
-      order: {
-        createdAt: "DESC",
-      },
-    });
+    const query = complaintRepo
+      .createQueryBuilder("complaint")
+      .leftJoinAndSelect("complaint.tenant", "tenant")
+      .leftJoinAndSelect("tenant.user", "user")
+      .leftJoinAndSelect("tenant.pg", "pg")
+      .leftJoinAndSelect("tenant.room", "room")
+      .leftJoinAndSelect("complaint.pg", "complaintPg")
+      .orderBy("complaint.createdAt", "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
 
-    return complaints;
+    if (search?.trim()) {
+      query.where(
+        `(
+          user.name ILIKE :search
+          OR pg.name ILIKE :search
+          OR CAST(room.roomNo AS TEXT) ILIKE :search
+          OR complaint.title ILIKE :search
+          OR complaint.description ILIKE :search
+        )`,
+        {
+          search: `%${search.trim()}%`,
+        },
+      );
+    }
+
+    const [items, total] = await query.getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   } catch (error) {
     throw new GraphQLError("Failed to fetch complaints");
   }

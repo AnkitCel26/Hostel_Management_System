@@ -7,22 +7,38 @@ import type {
   UpdateAnnouncementMutation,
   UpdateAnnouncementMutationVariables,
   GetAllPgsRoomsQuery,
+  GetAllAnnouncementsQueryVariables,
 } from "../types/AnnouncementManagement.types";
 
-export const GET_ALL_ANNOUNCEMENTS: TypedDocumentNode<GetAllAnnouncementsQuery> = gql`
-  query GetAllAnnouncements {
-    getAllAnnouncements {
-      id
-      pgId
-      createdBy
-      title
-      content
-      isActive
-      createdAt
-      updatedAt
-      pg {
-        name
+export const GET_ALL_ANNOUNCEMENTS: TypedDocumentNode<
+  GetAllAnnouncementsQuery,
+  GetAllAnnouncementsQueryVariables
+> = gql`
+  query GetAllAnnouncements(
+    $page: Int!
+    $limit: Int!
+  ) {
+    getAllAnnouncements(
+      page: $page
+      limit: $limit
+    ) {
+      items {
+        id
+        pgId
+        createdBy
+        title
+        content
+        isActive
+        createdAt
+        updatedAt
+        pg {
+          name
+        }
       }
+      total
+      page
+      limit
+      totalPages
     }
   }
 `;

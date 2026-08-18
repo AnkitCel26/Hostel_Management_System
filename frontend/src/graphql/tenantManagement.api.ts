@@ -10,49 +10,62 @@ import type {
   GetAllPgsRoomsResponse,
 } from "../types/TenantManagement.types";
 
-export const GET_ALL_TENANTS: TypedDocumentNode<GetAllTenantsResponse> = gql`
-  query GetAllTenants {
-    getAllTenants {
-      id
-      userId
-      pgId
-      roomId
-      joiningDate
-      status
-      createdAt
-      updatedAt
-
-      user {
+export const GET_ALL_TENANTS: TypedDocumentNode<
+  GetAllTenantsResponse,
+  {
+    page: number;
+    limit: number;
+  }
+> = gql`
+  query GetAllTenants($page: Int!, $limit: Int!) {
+    getAllTenants(page: $page, limit: $limit) {
+      items {
         id
-        name
-        email
-        role
-        phone
-        isActive
-      }
-
-      pg {
-        id
-        name
-        address
-        city
-        state
-        pincode
-        contactNo
-        description
-        isActive
-      }
-
-      room {
-        id
+        userId
         pgId
-        roomNo
-        floor
-        capacity
-        occupiedNo
-        monthlyRent
+        roomId
+        joiningDate
         status
+        createdAt
+        updatedAt
+
+        user {
+          id
+          name
+          email
+          role
+          phone
+          isActive
+        }
+
+        pg {
+          id
+          name
+          address
+          city
+          state
+          pincode
+          contactNo
+          description
+          isActive
+        }
+
+        room {
+          id
+          pgId
+          roomNo
+          floor
+          capacity
+          occupiedNo
+          monthlyRent
+          status
+        }
       }
+
+      total
+      page
+      limit
+      totalPages
     }
   }
 `;

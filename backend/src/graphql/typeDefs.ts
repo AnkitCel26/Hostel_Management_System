@@ -329,6 +329,14 @@ type UpdateAnnouncementResponse {
   announcement: Announcement!
 }
 
+type AnnouncementPaginationResponse {
+  items: [Announcement!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
+
  type AllPgs {
   id: ID!
   name: String!
@@ -342,6 +350,19 @@ type UpdateAnnouncementResponse {
   createdAt:String!
   updatedAt:String!
   rooms:[Room!]!
+}
+
+input PgPaginationInput {
+  page: Int = 1
+  limit: Int = 10
+}
+
+type PgPaginationResponse {
+  items: [AllPgs!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
 }
 
 type TenantPgRoomResponse {
@@ -371,6 +392,13 @@ type TenantRentPaymentResponse {
   room: Room
 }
 
+type TenantPaginationResponse {
+  items: [AllTenant!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
 
 type AdminTenant {
   id: ID!
@@ -429,23 +457,94 @@ type AdminComplaint {
   tenant: AdminComplaintTenant!
 }
 
+type AdminComplaintResponse {
+  items: [AdminComplaint!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
+
 type RefreshTokenResponse {
   message: String!
 }
 
+type RoomWithPg {
+  id: ID!
+  pgId: ID!
+  roomNo: Int!
+  floor: Int
+  capacity: Int!
+  occupiedNo: Int!
+  monthlyRent: Float!
+  status: String!
+  createdAt: String!
+  updatedAt: String!
+  pg: Pg!
+}
+
+type RoomPaginationResponse {
+  items: [RoomWithPg!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
+
+type RentPaymentPagination {
+  items: [AdminRentPayment!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
+
+type AdminRentSummaryResponse {
+  items: [AdminRentSummary!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+  totalPages: Int!
+}
+
+type AdminDashboardStats {
+  totalPgs: Int!
+  totalRooms: Int!
+  totalTenants: Int!
+  occupiedBeds: Int!
+  activePgs: Int!
+  availableRooms: Int!
+  fullRooms: Int!
+  availableBeds: Int!
+}
    type Query {
     me: User!
+
     allUsers:[User!]!
-    getAllPgsRooms:[AllPgs!]!
+
+    getAdminDashboardStats: AdminDashboardStats!
+
+    getAllRooms(page: Int! limit: Int! search: String): RoomPaginationResponse!
+
+    getAllPgsRooms(input: PgPaginationInput): PgPaginationResponse!
+
     getTenantPgRoom(userId:ID!):TenantPgRoomResponse!
-    getAllRentPayments: [AdminRentPayment!]!
-     getAdminRentSummary( month: String! year: Int!): [AdminRentSummary!]!
+
+    getAllRentPayments(page: Int limit: Int search: String sortBy: String sortOrder: String): RentPaymentPagination!
+
+     getAdminRentSummary( month: String! year: Int! page: Int! limit: Int!): AdminRentSummaryResponse!
+
     getRentPaymentHistory(userId:ID!):TenantRentPaymentResponse!
+
     getTenantComplaints:[Complaint!]!
-    getAllComplaints: [AdminComplaint!]!
-    getAllAnnouncements: [Announcement!]!
+
+    getAllComplaints(page: Int! limit: Int! search: String): AdminComplaintResponse!
+
+    getAllAnnouncements(page: Int! limit: Int!): AnnouncementPaginationResponse!
+
     getTenantPgAnnouncements:[Announcement!]!
-    getAllTenants:[AllTenant!]!
+
+    getAllTenants(page: Int! limit: Int!): TenantPaginationResponse!
   }
 
   type Mutation {

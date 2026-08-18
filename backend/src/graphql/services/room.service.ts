@@ -67,3 +67,38 @@ export const updateRoom = async (roomId: string, data: UpdateRoomArgs) => {
     throw new GraphQLError("Server Error");
   }
 };
+
+
+export const getAllRooms = async (
+  page: number = 1,
+  limit: number = 10,
+  search: string = "",
+) => {
+  const query = roomRepo
+    .createQueryBuilder("room")
+    .leftJoinAndSelect("room.pg", "pg");
+
+  if (search) {
+    query.where(
+      "CAST(room.roomNo AS TEXT) ILIKE :search OR pg.name ILIKE :search",
+      {
+        search: `%${search}%`,
+      },
+    );
+  }
+
+  query
+    .orderBy("room.createdAt", "DESC")
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [items, total] = await query.getManyAndCount();
+
+  return {
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+};

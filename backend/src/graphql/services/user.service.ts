@@ -4,8 +4,14 @@ import { User } from "../../entities/user.entity.ts";
 import { hashPassword, verifyPassword } from "../../utils/password.ts";
 import type { Response } from "express";
 import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.ts";
+import { Pg } from "../../entities/pg.entity.ts";
+import { Room } from "../../entities/room.entity.ts";
+import { Tenant } from "../../entities/tenant.entity.ts";
 
 const userRepo = AppDataSource.getRepository(User);
+const pgRepo = AppDataSource.getRepository(Pg);
+const roomRepo = AppDataSource.getRepository(Room);
+const tenantRepo = AppDataSource.getRepository(Tenant);
 
 export const registerUser = async (
   name: string,
@@ -197,4 +203,55 @@ export const me = async (userId: string) => {
   }
 
   return user;
+};
+
+export const getAdminDashboardStats = async () => {
+  try {
+    const totalPgs = await pgRepo.count();
+
+    const activePgs = await pgRepo.count({
+      where: {
+        isActive: true,
+      },
+    });
+
+    const totalRooms = await roomRepo.count();
+
+    const totalTenants = await tenantRepo.count();
+
+    const rooms = await roomRepo.find();
+
+    const occupiedBeds = rooms.reduce(
+      (total, room) => total + room.occupiedNo,
+      0,
+    );
+
+    const availableBeds = rooms.reduce(
+      (total, room) => total + (room.capacity - room.occupiedNo),
+      0,
+    );
+
+    const fullRooms = rooms.filter(
+      (room) => room.occupiedNo >= room.capacity,
+    ).length;
+
+    const availableRooms = rooms.filter(
+      (room) => room.occupiedNo < room.capacity,
+    ).length;
+
+    return {
+      totalPgs,
+      activePgs,
+      totalRooms,
+      totalTenants,
+      occupiedBeds,
+      availableBeds,
+      fullRooms,
+      availableRooms,
+    };
+  } catch (error) {
+    throw new GraphQLError(
+      "Failed to fetch admin dashboard statistics",
+    );
+  }
 };

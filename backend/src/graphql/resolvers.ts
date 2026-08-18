@@ -2,6 +2,7 @@ import { GraphQLError } from "graphql";
 
 import {
   allUsers,
+  getAdminDashboardStats,
   loginUser,
   logoutUser,
   me,
@@ -21,7 +22,11 @@ import {
   getTenantPgRoom,
   updatePg,
 } from "./services/pg.service.ts";
-import { createRoom, updateRoom } from "./services/room.service.ts";
+import {
+  createRoom,
+  getAllRooms,
+  updateRoom,
+} from "./services/room.service.ts";
 import type { CreateRoomArgs, UpdateRoomArgs } from "./types/room.types.ts";
 import {
   createTenant,
@@ -76,7 +81,6 @@ import { requireAdmin, requireAuth } from "../authUtility/authmiddleware.ts";
 import { refreshAccessToken } from "./services/auth.service.ts";
 export const resolvers = {
   Query: {
-
     me: async (
       parent: unknown,
       args: unknown,
@@ -103,13 +107,19 @@ export const resolvers = {
 
     getAllPgsRooms: async (
       parent: unknown,
-      args: unknown,
+      args: {
+        input?: {
+          page?: number;
+          limit?: number;
+        };
+      },
       context: GraphQLContext,
       info: unknown,
     ) => {
       try {
         await requireAuth(context);
-        return await getAllPgsRooms();
+
+        return await getAllPgsRooms(args.input);
       } catch (error) {
         throw new GraphQLError("Failed to fetch all pgs and rooms");
       }
@@ -139,13 +149,25 @@ export const resolvers = {
 
     getAllRentPayments: async (
       parent: unknown,
-      args: unknown,
+      args: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        sortBy?: string;
+        sortOrder?: string;
+      },
       context: GraphQLContext,
       info: unknown,
     ) => {
       requireAdmin(context);
 
-      return getAllRentPayments();
+      return getAllRentPayments(
+        args.page,
+        args.limit,
+        args.search,
+        args.sortBy,
+        args.sortOrder,
+      );
     },
 
     getAdminRentSummary: async (
@@ -153,15 +175,17 @@ export const resolvers = {
       args: {
         month: string;
         year: number;
+        page: number;
+        limit: number;
       },
       context: GraphQLContext,
       info: unknown,
     ) => {
       requireAdmin(context);
 
-      const { month, year } = args;
+      const { month, year, page, limit } = args;
 
-      return getAdminRentSummary(month, year);
+      return getAdminRentSummary(month, year, page, limit);
     },
 
     getTenantComplaints: async (
@@ -177,13 +201,17 @@ export const resolvers = {
 
     getAllComplaints: async (
       parent: unknown,
-      args: unknown,
+      args: {
+        page: number;
+        limit: number;
+        search?: string;
+      },
       context: GraphQLContext,
       info: unknown,
     ) => {
       requireAdmin(context);
 
-      return getAllComplaints();
+      return getAllComplaints(args.page, args.limit, args.search);
     },
 
     getTenantPgAnnouncements: async (
@@ -199,23 +227,55 @@ export const resolvers = {
 
     getAllAnnouncements: async (
       parent: unknown,
+      args: {
+        page: number;
+        limit: number;
+      },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      return getAllAnnouncements(args.page, args.limit);
+    },
+
+    getAllTenants: async (
+      parent: unknown,
+      args: { page: number; limit: number },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      await requireAdmin(context);
+
+      return await getAllTenants(args.page, args.limit);
+    },
+
+    getAllRooms: async (
+      parent: unknown,
+      args: {
+        page: number;
+        limit: number;
+        search?: string;
+      },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      const { page, limit, search } = args;
+
+      return getAllRooms(page, limit, search);
+    },
+
+    getAdminDashboardStats: async (
+      parent: unknown,
       args: unknown,
       context: GraphQLContext,
       info: unknown,
     ) => {
       requireAdmin(context);
 
-      return getAllAnnouncements();
-    },
-
-    getAllTenants: async (
-      parent: unknown,
-      args: unknown,
-      context: GraphQLContext,
-      info: unknown,
-    ) => {
-      await requireAdmin(context);
-      return await getAllTenants();
+      return getAdminDashboardStats();
     },
   },
   Mutation: {

@@ -18,7 +18,18 @@ export type AllPgs = {
 };
 
 export type GetAllAnnouncementsQuery = {
-  getAllAnnouncements: Announcement[];
+  getAllAnnouncements: {
+    items: Announcement[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type GetAllAnnouncementsQueryVariables = {
+  page: number;
+  limit: number;
 };
 
 export type GetAllPgsRoomsQuery = {
