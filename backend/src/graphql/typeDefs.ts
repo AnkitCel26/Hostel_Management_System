@@ -56,7 +56,7 @@ export const typeDefs = `#graphql
   state: String!
   pincode: String!
   contactNo:String!
-  description:String!
+  description:String
   isActive:Boolean!
   createdAt:String!
   updatedAt:String!
@@ -278,7 +278,6 @@ type Complaint {
 }
 
 input CreateComplaintInput {
-  tenantId: ID!
   title: String!
   description: String!
   documentUrl: String
@@ -307,6 +306,7 @@ type Announcement {
   isActive: Boolean!
   createdAt:String!
   updatedAt:String!
+  pg:Pg!
 }
 
 input CreateAnnouncementInput {
@@ -356,14 +356,96 @@ type TenantRentPaymentResponse {
   monthlyRent: Float!
   paymentHistory: [RentPayment!]!
 }
+  type AllTenant {
+  id: ID!
+  userId: ID!
+  pgId: ID!
+  roomId: ID
+  joiningDate: String!
+  status: String!
+  createdAt: String!
+  updatedAt: String!
+
+  user: User!
+  pg: Pg!
+  room: Room
+}
+
+
+type AdminTenant {
+  id: ID!
+  user: User!
+  pg: Pg!
+  room: Room
+}
+
+
+type AdminRentPayment {
+  id: ID!
+  tenantId: ID!
+  month: String!
+  year: Int!
+  amount: Float!
+  paidAmount: Float!
+  dueDate: String!
+  paymentDate: String
+  paymentMode: PaymentMode
+  receiptUrl: String
+  status: PaymentStatus!
+  createdAt: String!
+  updatedAt: String!
+
+  tenant: AdminTenant!
+}
+
+type AdminRentSummary {
+  pgId: ID!
+  pgName: String!
+  totalRooms: Int!
+  occupiedRooms: Int!
+  totalRent: Float!
+  paidRent: Float!
+  dueRent: Float!
+}
+
+type AdminComplaintTenant {
+  id: ID!
+  user: User!
+  pg: Pg!
+  room: Room
+}
+
+type AdminComplaint {
+  id: ID!
+  tenantId: ID!
+  pgId: ID!
+  title: String!
+  description: String!
+  status: ComplaintStatus!
+  documentUrl: String
+  createdAt: String!
+  updatedAt: String!
+  resolvedAt: String
+  tenant: AdminComplaintTenant!
+}
+
+type RefreshTokenResponse {
+  message: String!
+}
 
    type Query {
+    me: User!
     allUsers:[User!]!
     getAllPgsRooms:[AllPgs!]!
     getTenantPgRoom(userId:ID!):TenantPgRoomResponse!
+    getAllRentPayments: [AdminRentPayment!]!
+     getAdminRentSummary( month: String! year: Int!): [AdminRentSummary!]!
     getRentPaymentHistory(userId:ID!):TenantRentPaymentResponse!
-    getTenantComplaints(userId:ID!):[Complaint!]!
-    getTenantPgAnnouncements(userId:ID!):[Announcement!]!
+    getTenantComplaints:[Complaint!]!
+    getAllComplaints: [AdminComplaint!]!
+    getAllAnnouncements: [Announcement!]!
+    getTenantPgAnnouncements:[Announcement!]!
+    getAllTenants:[AllTenant!]!
   }
 
   type Mutation {
@@ -371,6 +453,8 @@ type TenantRentPaymentResponse {
     loginUser(input: LoginUserInput!): LoginUserResponse!
 
     logoutUser: LogoutUserResponse!
+
+    refreshToken: RefreshTokenResponse!
 
     registerUser(input: RegisterUserInput!): RegisterUserResponse
 

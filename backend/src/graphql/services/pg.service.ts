@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { AppDataSource } from "../../config/db.js";
 import { Pg } from "../../entities/pg.entity.js";
 import type { UpdatePgArgs } from "../types/pg.types.ts";
-import { User } from "../../entities/user.entity.ts";
+
 import { Tenant } from "../../entities/tenant.entity.ts";
 
 const pgRepo = AppDataSource.getRepository(Pg);
@@ -97,6 +97,8 @@ export const getAllPgsRooms = async () => {
       pincode: true,
       contactNo: true,
       isActive: true,
+      createdAt:true,
+      updatedAt:true,
 
       rooms: {
         id: true,
@@ -107,6 +109,8 @@ export const getAllPgsRooms = async () => {
         occupiedNo: true,
         monthlyRent: true,
         status: true,
+        createdAt:true,
+        updatedAt:true
       },
     },
   });

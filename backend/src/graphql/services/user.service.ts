@@ -188,3 +188,13 @@ export const allUsers = async () => {
     throw new GraphQLError("Failed to fetch all users");
   }
 };
+
+export const me = async (userId: string) => {
+  const user = await userRepo.findOne({ where: { id: userId } });
+
+  if (!user) {
+    throw new GraphQLError("User not found");
+  }
+
+  return user;
+};

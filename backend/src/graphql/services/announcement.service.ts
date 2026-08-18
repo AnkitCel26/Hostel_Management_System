@@ -9,35 +9,50 @@ const tenantRepo = AppDataSource.getRepository(Tenant);
 export const createAnnouncement = async (
   pgId: string,
   userId: string,
-
   title: string,
   content: string,
 ) => {
-  try {
-    if (!userId || !pgId) {
-      throw new GraphQLError("Unauthorized");
-    }
+  if (!userId || !pgId) {
+    throw new GraphQLError("Unauthorized");
+  }
 
-    if (!title || !content) {
-      throw new GraphQLError("Title and content are required");
-    }
+  if (!title || !content) {
+    throw new GraphQLError("Title and content are required");
+  }
+
+  return AppDataSource.transaction(async (manager) => {
+    const announcementRepo =
+      manager.getRepository(Announcement);
 
     const announcement = announcementRepo.create({
       pgId,
       createdBy: userId,
-      title: title,
-      content: content,
+      title,
+      content,
     });
 
-    const savedAnnouncement = await announcementRepo.save(announcement);
+    const savedAnnouncement =
+      await announcementRepo.save(announcement);
+
+    const announcementWithPg =
+      await announcementRepo.findOne({
+        where: {
+          id: savedAnnouncement.id,
+        },
+        relations: {
+          pg: true,
+        },
+      });
+
+    if (!announcementWithPg) {
+      throw new GraphQLError("Announcement not found");
+    }
 
     return {
       message: "Announcement created successfully",
-      announcement: savedAnnouncement,
+      announcement: announcementWithPg,
     };
-  } catch (error) {
-    throw new GraphQLError("Failed to create announcement");
-  }
+  });
 };
 
 export const updateAnnouncement = async (
@@ -45,30 +60,54 @@ export const updateAnnouncement = async (
   isActive: boolean,
 ) => {
   try {
-    if (!announcementId || !isActive===undefined) {
-      throw new GraphQLError("Announcement ID and status are required");
+    if (!announcementId || isActive === undefined) {
+      throw new GraphQLError(
+        "Announcement ID and status are required",
+      );
     }
 
-    const announcement = await announcementRepo.findOne({
-      where: {
-        id: announcementId,
-      },
+    return await AppDataSource.transaction(async (manager) => {
+      const announcementRepo =
+        manager.getRepository(Announcement);
+
+      const announcement = await announcementRepo.findOne({
+        where: {
+          id: announcementId,
+        },
+      });
+
+      if (!announcement) {
+        throw new GraphQLError("Announcement not found");
+      }
+
+      announcement.isActive = isActive;
+
+      const updatedAnnouncement =
+        await announcementRepo.save(announcement);
+
+      const announcementWithPg =
+        await announcementRepo.findOne({
+          where: {
+            id: updatedAnnouncement.id,
+          },
+          relations: {
+            pg: true,
+          },
+        });
+
+      if (!announcementWithPg) {
+        throw new GraphQLError("Announcement not found");
+      }
+
+      return {
+        message: "Announcement updated successfully",
+        announcement: announcementWithPg,
+      };
     });
-
-    if (!announcement) {
-      throw new GraphQLError("Announcement not found");
-    }
-
-    announcement.isActive = isActive;
-
-    const updatedAnnouncement = await announcementRepo.save(announcement);
-
-    return {
-      message: "Announcement updated successfully",
-      announcement: updatedAnnouncement,
-    };
   } catch (error) {
-    throw new GraphQLError("Failed to update announcement");
+    throw new GraphQLError(
+      "Failed to update announcement",
+    );
   }
 };
 
@@ -101,5 +140,22 @@ export const getTenantPgAnnouncements = async (userId: string) => {
     }
 
     throw new GraphQLError("Failed to fetch PG announcements");
+  }
+};
+
+export const getAllAnnouncements = async () => {
+  try {
+    const announcements = await announcementRepo.find({
+      relations: {
+        pg: true,
+      },
+      order: {
+        createdAt: "DESC",
+      },
+    });
+
+    return announcements;
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch announcements");
   }
 };

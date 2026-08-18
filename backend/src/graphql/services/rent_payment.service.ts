@@ -6,9 +6,11 @@ import {
   type PaymentMode,
 } from "../../entities/rent_payment.entity.ts";
 import { Tenant } from "../../entities/tenant.entity.ts";
+import { Pg } from "../../entities/pg.entity.ts";
 
 const paymentRepo = AppDataSource.getRepository(RentPayment);
 const tenantRepo = AppDataSource.getRepository(Tenant);
+const pgRepo = AppDataSource.getRepository(Pg);
 
 export const createRentPayment = async (
   tenantId: string,
@@ -165,5 +167,96 @@ export const updateRentPayment = async (
     };
   } catch (error) {
     throw new GraphQLError("Failed to update rent payment");
+  }
+};
+
+export const getAllRentPayments = async () => {
+  try {
+    const payments = await paymentRepo.find({
+      relations: {
+        tenant: {
+          user: true,
+          pg: true,
+          room: true,
+        },
+      },
+      order: {
+        dueDate: "DESC",
+      },
+    });
+
+    return payments;
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch rent payments");
+  }
+};
+
+export const getAdminRentSummary = async (
+  month: string,
+  year: number,
+) => {
+  try {
+    const pgs = await pgRepo.find({
+      relations: {
+        rooms: true,
+      },
+    });
+
+    const payments = await paymentRepo.find({
+      where: {
+        month,
+        year,
+      },
+      relations: {
+        tenant: {
+          pg: true,
+        },
+      },
+    });
+
+    return pgs.map((pg) => {
+      const totalRooms = pg.rooms.length;
+
+      const occupiedRooms = pg.rooms.filter(
+        (room) => room.occupiedNo > 0,
+      ).length;
+
+      const totalRent = pg.rooms.reduce(
+        (total, room) => {
+          return total + Number(room.monthlyRent) * room.occupiedNo;
+        },
+        0,
+      );
+
+      const pgPayments = payments.filter(
+        (payment) => payment.tenant.pgId === pg.id,
+      );
+
+      const paidRent = pgPayments.reduce(
+        (total, payment) => {
+          return total + Number(payment.paidAmount);
+        },
+        0,
+      );
+
+      const dueRent = Math.max(
+        totalRent - paidRent,
+        0,
+      );
+
+      return {
+        pgId: pg.id,
+        pgName: pg.name,
+        totalRooms,
+        occupiedRooms,
+        totalRent,
+        paidRent,
+        dueRent,
+      };
+    });
+  } catch (error) {
+    throw new GraphQLError(
+      "Failed to fetch rent summary",
+    );
   }
 };

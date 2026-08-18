@@ -1,9 +1,10 @@
 import { GraphQLError } from "graphql";
-import { verifyAccessToken } from "../utils/jwt.ts";
+
 import {
   allUsers,
   loginUser,
   logoutUser,
+  me,
   registerUser,
   updateProfile,
 } from "./services/user.service.ts";
@@ -12,7 +13,7 @@ import type {
   RegisterUserArgs,
   UpdateProfileArgs,
 } from "./types/user.types.ts";
-import type { Request, Response } from "express";
+
 import type { CreatePgArgs, UpdatePgArgs } from "./types/pg.types.ts";
 import {
   createPg,
@@ -24,6 +25,7 @@ import { createRoom, updateRoom } from "./services/room.service.ts";
 import type { CreateRoomArgs, UpdateRoomArgs } from "./types/room.types.ts";
 import {
   createTenant,
+  getAllTenants,
   getRentPaymentHistory,
   updateTenant,
 } from "./services/tenant.service.ts";
@@ -41,6 +43,8 @@ import type {
 } from "./types/tenant_doc.types.ts";
 import {
   createRentPayment,
+  getAdminRentSummary,
+  getAllRentPayments,
   updateRentPayment,
 } from "./services/rent_payment.service.ts";
 import type {
@@ -49,6 +53,7 @@ import type {
 } from "./types/rentPayment.types.ts";
 import {
   createComplaint,
+  getAllComplaints,
   getTenantComplaints,
   updateComplaint,
 } from "./services/complaint.service.ts";
@@ -58,6 +63,7 @@ import type {
 } from "./types/complaint.types.ts";
 import {
   createAnnouncement,
+  getAllAnnouncements,
   getTenantPgAnnouncements,
   updateAnnouncement,
 } from "./services/announcement.service.ts";
@@ -67,8 +73,20 @@ import type {
 } from "./types/announcement.types.ts";
 import type { GraphQLContext } from "./types/context.types.ts";
 import { requireAdmin, requireAuth } from "../authUtility/authmiddleware.ts";
+import { refreshAccessToken } from "./services/auth.service.ts";
 export const resolvers = {
   Query: {
+
+    me: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      const user = requireAuth(context);
+      return me(user.id);
+    },
+
     allUsers: async (
       parent: unknown,
       args: unknown,
@@ -119,6 +137,33 @@ export const resolvers = {
       return await getRentPaymentHistory(user.id);
     },
 
+    getAllRentPayments: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      return getAllRentPayments();
+    },
+
+    getAdminRentSummary: async (
+      parent: unknown,
+      args: {
+        month: string;
+        year: number;
+      },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      const { month, year } = args;
+
+      return getAdminRentSummary(month, year);
+    },
+
     getTenantComplaints: async (
       parent: unknown,
       args: unknown,
@@ -130,6 +175,17 @@ export const resolvers = {
       return await getTenantComplaints(user.id);
     },
 
+    getAllComplaints: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      return getAllComplaints();
+    },
+
     getTenantPgAnnouncements: async (
       parent: unknown,
       args: unknown,
@@ -139,6 +195,27 @@ export const resolvers = {
       const user = requireAuth(context);
 
       return await getTenantPgAnnouncements(user.id);
+    },
+
+    getAllAnnouncements: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      return getAllAnnouncements();
+    },
+
+    getAllTenants: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      await requireAdmin(context);
+      return await getAllTenants();
     },
   },
   Mutation: {
@@ -171,6 +248,15 @@ export const resolvers = {
       info: unknown,
     ) => {
       return logoutUser(context.res);
+    },
+
+    refreshToken: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      return refreshAccessToken(context.req, context.res);
     },
 
     updateProfile: async (
@@ -345,10 +431,10 @@ export const resolvers = {
       context: GraphQLContext,
       info: unknown,
     ) => {
-      requireAuth(context);
-      const { tenantId, title, description, documentUrl } = args.input;
+      const user = requireAuth(context);
+      const { title, description, documentUrl } = args.input;
 
-      return createComplaint(tenantId, title, description, documentUrl);
+      return createComplaint(user.id, title, description, documentUrl);
     },
 
     updateComplaint: async (
@@ -371,7 +457,7 @@ export const resolvers = {
       const user = requireAdmin(context);
       const { pgId, title, content } = args.input;
 
-      return createAnnouncement(pgId, user?.id, title, content);
+      return createAnnouncement(pgId, user.id, title, content);
     },
 
     updateAnnouncement: async (

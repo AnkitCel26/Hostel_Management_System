@@ -196,6 +196,29 @@ export const updateTenant = async (
   }
 };
 
+
+export const getAllTenants = async () => {
+  try {
+    const tenants = await tenantRepo.find({
+      relations: {
+        user: true,
+        pg: true,
+        room: true,
+      },
+      order: {
+        joiningDate: "DESC",
+      },
+    });
+
+    return tenants;
+  } catch (error) {
+    console.error("Failed to fetch tenants:", error);
+
+    throw new GraphQLError("Failed to fetch tenants");
+  }
+};
+
+
 export const getRentPaymentHistory = async (userId: string) => {
   try {
     const tenant = await tenantRepo.findOne({

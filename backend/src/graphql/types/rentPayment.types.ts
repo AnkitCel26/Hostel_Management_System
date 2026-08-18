@@ -21,3 +21,18 @@ export interface UpdateRentPaymentArgs {
     paymentMode: PaymentMode;
   };
 }
+
+export interface AdminRentSummary {
+  pgId: string;
+  pgName: string;
+  totalRooms: number;
+  occupiedRooms: number;
+  totalRent: number;
+  paidRent: number;
+  dueRent: number;
+}
+
+export interface GetAdminRentSummaryArgs {
+  month: string;
+  year: number;
+}

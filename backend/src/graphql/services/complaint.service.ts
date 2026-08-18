@@ -7,19 +7,19 @@ const complaintRepo = AppDataSource.getRepository(Complaint);
 const tenantRepo = AppDataSource.getRepository(Tenant);
 
 export const createComplaint = async (
-  tenantId: string,
+  userId: string,
   title: string,
   description: string,
   documentUrl?: string,
 ) => {
   try {
-    if (!tenantId || !title || !description) {
+    if (!userId || !title || !description) {
       throw new GraphQLError("All fields are required");
     }
 
     const tenant = await tenantRepo.findOne({
       where: {
-        id: tenantId,
+        userId: userId
       },
     });
 
@@ -28,7 +28,7 @@ export const createComplaint = async (
     }
 
     const complaint = complaintRepo.create({
-      tenantId,
+      tenantId:tenant.id,
       pgId: tenant.pgId,
       title,
       description,
@@ -114,6 +114,28 @@ export const getTenantComplaints = async (userId: string) => {
     return complaints;
   } catch (error) {
 
+    throw new GraphQLError("Failed to fetch complaints");
+  }
+};
+
+export const getAllComplaints = async () => {
+  try {
+    const complaints = await complaintRepo.find({
+      relations: {
+        tenant: {
+          user: true,
+          pg: true,
+          room: true,
+        },
+        pg: true,
+      },
+      order: {
+        createdAt: "DESC",
+      },
+    });
+
+    return complaints;
+  } catch (error) {
     throw new GraphQLError("Failed to fetch complaints");
   }
 };
