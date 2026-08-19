@@ -7,20 +7,21 @@ import {
 import { Tenant } from "../../entities/tenant.entity.js";
 
 const tenantDocRepo = AppDataSource.getRepository(TenantDocument);
+const tenantRepo = AppDataSource.getRepository(Tenant);
 
 export const uploadTenantDocs = async (
-  tenantId: string,
+  userId: string,
   documentType: DocumentType,
   fileUrl: string,
 ) => {
   try {
-    if (!tenantId || !documentType || !fileUrl) {
+    if (!documentType || !fileUrl) {
       throw new GraphQLError("All fields are required");
     }
 
     const tenant = await AppDataSource.getRepository(Tenant).findOne({
       where: {
-        id: tenantId,
+        userId: userId,
       },
     });
 
@@ -29,7 +30,7 @@ export const uploadTenantDocs = async (
     }
 
     const document = tenantDocRepo.create({
-      tenantId,
+      tenantId: tenant.id,
       documentType,
       fileUrl,
     });
@@ -41,6 +42,9 @@ export const uploadTenantDocs = async (
       document: savedDocument,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to upload document: ${error.message}`);
+    }
     throw new GraphQLError("Failed to upload document");
   }
 };
@@ -94,6 +98,54 @@ export const updateTenantDocs = async (
       document: updatedDocument,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update document: ${error.message}`);
+    }
     throw new GraphQLError("Failed to update document");
+  }
+};
+
+export const getTenantDocuments = async (userId: string) => {
+  try {
+    const tenant = await tenantRepo.findOne({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!tenant) {
+      throw new GraphQLError("Tenant not found");
+    }
+
+    const tenantDoc = await tenantDocRepo.find({
+      where: {
+        tenantId: tenant.id,
+      },
+    });
+    return tenantDoc;
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch document");
+  }
+};
+
+export const deleteTenantDocuments = async (documentId: string) => {
+  try {
+    const document = await tenantDocRepo.findOne({
+      where: {
+        id: documentId,
+      },
+    });
+
+    if (!document) {
+      throw new GraphQLError("Document not found");
+    }
+
+    await tenantDocRepo.remove(document);
+
+    return {
+      message: "Document deleted successfully",
+    };
+  } catch (error) {
+    throw new GraphQLError("Failed to Delete document");
   }
 };

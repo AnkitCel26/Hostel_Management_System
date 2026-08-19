@@ -43,6 +43,9 @@ export const createComplaint = async (
       complaint: savedComplaint,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create complaint: ${error.message}`);
+    }
     throw new GraphQLError("Failed to create complaint");
   }
 };
@@ -86,6 +89,9 @@ export const updateComplaint = async (
       complaint: updatedComplaint,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update complaint: ${error.message}`);
+    }
     throw new GraphQLError("Failed to update complaint");
   }
 };
@@ -121,6 +127,7 @@ export const getAllComplaints = async (
   page: number,
   limit: number,
   search?: string,
+  status?: ComplaintStatus,
 ) => {
   try {
     const query = complaintRepo
@@ -147,6 +154,9 @@ export const getAllComplaints = async (
           search: `%${search.trim()}%`,
         },
       );
+    }
+    if (status) {
+      query.andWhere("complaint.status = :status", { status });
     }
 
     const [items, total] = await query.getManyAndCount();

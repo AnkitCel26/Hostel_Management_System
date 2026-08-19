@@ -8,104 +8,110 @@ import { RentPayment } from "../../entities/rent_payment.entity.ts";
 
 const tenantRepo = AppDataSource.getRepository(Tenant);
 
-
 export const createTenant = async (
   userId: string,
   pgId: string,
   roomId: string | undefined,
   joiningDate: string,
 ) => {
-  if (!userId || !pgId || !joiningDate) {
-    throw new GraphQLError("All fields are required");
-  }
-
-  const actualDate = new Date(joiningDate);
-
-  if (Number.isNaN(actualDate.getTime())) {
-    throw new GraphQLError("Invalid joining date");
-  }
-
-  return AppDataSource.transaction(async (manager) => {
-    const user = await manager.findOne(User, {
-      where: {
-        id: userId,
-      },
-    });
-
-    if (!user) {
-      throw new GraphQLError("User not found");
+  try {
+    if (!userId || !pgId || !joiningDate) {
+      throw new GraphQLError("All fields are required");
     }
 
-    if (!user.isActive) {
-      throw new GraphQLError("User account is inactive");
+    const actualDate = new Date(joiningDate);
+
+    if (Number.isNaN(actualDate.getTime())) {
+      throw new GraphQLError("Invalid joining date");
     }
 
-    const existingTenant = await manager.findOne(Tenant, {
-      where: {
-        userId,
-      },
-    });
-
-    if (existingTenant) {
-      throw new GraphQLError("User is already registered as a tenant");
-    }
-
-    const pg = await manager.findOne(Pg, {
-      where: {
-        id: pgId,
-      },
-    });
-
-    if (!pg) {
-      throw new GraphQLError("PG not found");
-    }
-
-    let room: Room | null = null;
-
-    if (roomId) {
-      room = await manager.findOne(Room, {
+    return AppDataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
         where: {
-          id: roomId,
+          id: userId,
         },
       });
 
-      if (!room) {
-        throw new GraphQLError("Room not found");
+      if (!user) {
+        throw new GraphQLError("User not found");
       }
 
-      if (room.pgId !== pgId) {
-        throw new GraphQLError("Room does not belong to this PG");
+      if (!user.isActive) {
+        throw new GraphQLError("User account is inactive");
       }
 
-      if (room.occupiedNo >= room.capacity) {
-        throw new GraphQLError("Room is already full");
+      const existingTenant = await manager.findOne(Tenant, {
+        where: {
+          userId,
+        },
+      });
+
+      if (existingTenant) {
+        throw new GraphQLError("User is already registered as a tenant");
       }
 
-      room.occupiedNo += 1;
+      const pg = await manager.findOne(Pg, {
+        where: {
+          id: pgId,
+        },
+      });
 
-      if (room.occupiedNo >= room.capacity) {
-        room.status = RoomStatus.FULL;
-      } else {
-        room.status = RoomStatus.AVAILABLE;
+      if (!pg) {
+        throw new GraphQLError("PG not found");
       }
 
-      await manager.save(Room, room);
-    }
+      let room: Room | null = null;
 
-    const tenant = manager.create(Tenant, {
-      userId,
-      pgId,
-      roomId: roomId ?? null,
-      joiningDate: actualDate,
+      if (roomId) {
+        room = await manager.findOne(Room, {
+          where: {
+            id: roomId,
+          },
+        });
+
+        if (!room) {
+          throw new GraphQLError("Room not found");
+        }
+
+        if (room.pgId !== pgId) {
+          throw new GraphQLError("Room does not belong to this PG");
+        }
+
+        if (room.occupiedNo >= room.capacity) {
+          throw new GraphQLError("Room is already full");
+        }
+
+        room.occupiedNo += 1;
+
+        if (room.occupiedNo >= room.capacity) {
+          room.status = RoomStatus.FULL;
+        } else {
+          room.status = RoomStatus.AVAILABLE;
+        }
+
+        await manager.save(Room, room);
+      }
+
+      const tenant = manager.create(Tenant, {
+        userId,
+        pgId,
+        roomId: roomId ?? null,
+        joiningDate: actualDate,
+      });
+
+      const savedTenant = await manager.save(Tenant, tenant);
+
+      return {
+        message: "Tenant created successfully",
+        tenant: savedTenant,
+      };
     });
-
-    const savedTenant = await manager.save(Tenant, tenant);
-
-    return {
-      message: "Tenant created successfully",
-      tenant: savedTenant,
-    };
-  });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create Tenant: ${error.message}`);
+    }
+    throw new GraphQLError("Server Error");
+  }
 };
 
 export const updateTenant = async (
@@ -192,15 +198,14 @@ export const updateTenant = async (
       };
     });
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update Tenant: ${error.message}`);
+    }
     throw new GraphQLError("Server Error");
   }
 };
 
-
-export const getAllTenants = async (
-  page: number = 1,
-  limit: number = 10,
-) => {
+export const getAllTenants = async (page: number = 1, limit: number = 10) => {
   try {
     const [items, total] = await tenantRepo.findAndCount({
       relations: {
@@ -228,7 +233,6 @@ export const getAllTenants = async (
     throw new GraphQLError("Failed to fetch tenants");
   }
 };
-
 
 export const getRentPaymentHistory = async (userId: string) => {
   try {

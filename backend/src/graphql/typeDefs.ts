@@ -177,11 +177,9 @@ type TenantDocument {
   documentType: Document!
   fileUrl: String!
   createdAt:String!
-  updatedAt:String!
 }
 
 input uploadTenantDocsInput {
-  tenantId: ID!
   documentType: Document!
   fileUrl: String!
 }
@@ -497,6 +495,7 @@ type RentPaymentPagination {
   page: Int!
   limit: Int!
   totalPages: Int!
+  
 }
 
 type AdminRentSummaryResponse {
@@ -517,6 +516,38 @@ type AdminDashboardStats {
   fullRooms: Int!
   availableBeds: Int!
 }
+
+type deleteDocumentResponse{
+  message:String!
+}
+
+type AllPgs{
+  id: ID!
+  name:String!
+  city:String!
+  state:String!
+  isActive:Boolean!
+  room:[Room!]!
+}
+
+type RentDue {
+  tenantName: String!
+  pgName: String!
+  roomNo: Int
+  dueAmount: Float!
+  month: String!
+  year: Int!
+}
+
+type AdminRentHistory {
+  totalRooms: Int!
+  occupiedRooms: Int!
+  totalRent: Float!
+  paidRent: Float!
+  dueRent: Float!
+  dues: [RentDue!]!
+}
+
    type Query {
     me: User!
 
@@ -528,23 +559,29 @@ type AdminDashboardStats {
 
     getAllPgsRooms(input: PgPaginationInput): PgPaginationResponse!
 
+    getAllPgs:[AllPgs!]!
+
     getTenantPgRoom(userId:ID!):TenantPgRoomResponse!
 
-    getAllRentPayments(page: Int limit: Int search: String sortBy: String sortOrder: String): RentPaymentPagination!
+    getAllRentPayments(page: Int limit: Int search: String sortBy: String sortOrder: String status: PaymentStatus): RentPaymentPagination!
 
      getAdminRentSummary( month: String! year: Int! page: Int! limit: Int!): AdminRentSummaryResponse!
 
     getRentPaymentHistory(userId:ID!):TenantRentPaymentResponse!
 
+    getAdminRentHistory(month: String!, year: Int!): AdminRentHistory!
+
     getTenantComplaints:[Complaint!]!
 
-    getAllComplaints(page: Int! limit: Int! search: String): AdminComplaintResponse!
+    getAllComplaints(page: Int! limit: Int! search: String status: ComplaintStatus): AdminComplaintResponse!
 
     getAllAnnouncements(page: Int! limit: Int!): AnnouncementPaginationResponse!
 
     getTenantPgAnnouncements:[Announcement!]!
 
     getAllTenants(page: Int! limit: Int!): TenantPaginationResponse!
+
+    getTenantDocuments: [TenantDocument!]!
   }
 
   type Mutation {
@@ -586,6 +623,8 @@ type AdminDashboardStats {
     createAnnouncement(input: CreateAnnouncementInput!): CreateAnnouncementResponse!
 
     updateAnnouncement(announcementId:ID!,input:UpdateAnnouncementInput!):UpdateAnnouncementResponse!
+
+    deleteTenantDocuments(documentId:ID!):deleteDocumentResponse!
 
   }
 `;

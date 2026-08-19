@@ -59,10 +59,11 @@ export const createRentPayment = async (
         tenantId,
         month,
         year,
+        
       },
     });
 
-    if (existingPayment) {
+    if (existingPayment && existingPayment.status==="paid") {
       throw new GraphQLError("Payment for this month already exists");
     }
 
@@ -103,6 +104,10 @@ export const createRentPayment = async (
       payment: savedPayment,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create rent payment: ${error.message}`);
+    }
+
     throw new GraphQLError("Failed to create rent payment");
   }
 };
@@ -166,6 +171,9 @@ export const updateRentPayment = async (
       payment: updatedPayment,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update rent payment: ${error.message}`);
+    }
     throw new GraphQLError("Failed to update rent payment");
   }
 };
@@ -176,6 +184,8 @@ export const getAllRentPayments = async (
   search: string = "",
   sortBy: string = "dueDate",
   sortOrder: string = "DESC",
+  status?: PaymentStatus
+  
 ) => {
   const query = paymentRepo
     .createQueryBuilder("payment")
@@ -191,6 +201,12 @@ export const getAllRentPayments = async (
         search: `%${search}%`,
       },
     );
+  }
+
+  if (status) {
+    query.andWhere("payment.status = :status", {
+      status,
+    });
   }
 
   const allowedSortFields: Record<string, string> = {
@@ -285,10 +301,7 @@ export const getAdminRentSummary = async (
     const total = summaries.length;
     const totalPages = Math.ceil(total / limit);
 
-    const items = summaries.slice(
-      (page - 1) * limit,
-      page * limit,
-    );
+    const items = summaries.slice((page - 1) * limit, page * limit);
 
     return {
       items,
@@ -296,6 +309,79 @@ export const getAdminRentSummary = async (
       page,
       limit,
       totalPages,
+    };
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch rent summary");
+  }
+};
+
+export const getAdminRentHistory = async (month: string, year: number) => {
+  try {
+    const pgs = await pgRepo.find({
+      relations: {
+        rooms: true,
+      },
+    });
+
+    const payments = await paymentRepo.find({
+      where: {
+        month,
+        year,
+      },
+      relations: {
+        tenant: {
+          user: true,
+          pg: true,
+          room: true,
+        },
+      },
+    });
+
+    const totalRooms = pgs.reduce((total, pg) => total + pg.rooms.length, 0);
+
+    const occupiedRooms = pgs.reduce((total, pg) => {
+      return (
+        total + pg.rooms.filter((room) => room.occupiedNo > 0).length
+      );
+    }, 0);
+
+    const totalRent = pgs.reduce((total, pg) => {
+      return (
+        total +
+        pg.rooms.reduce((pgTotal, room) => {
+          return pgTotal + Number(room.monthlyRent) * room.occupiedNo;
+        }, 0)
+      );
+    }, 0);
+
+    const paidRent = payments.reduce((total, payment) => {
+      return total + Number(payment.paidAmount);
+    }, 0);
+
+    const dueRent = Math.max(totalRent - paidRent, 0);
+
+    const dues = payments
+      .map((payment) => {
+        const due = Number(payment.amount) - Number(payment.paidAmount);
+
+        return {
+          tenantName: payment.tenant.user.name,
+          pgName: payment.tenant.pg.name,
+          roomNo: payment.tenant.room?.roomNo ?? null,
+          dueAmount: Math.max(due, 0),
+          month: payment.month,
+          year: payment.year,
+        };
+      })
+      .filter((due) => due.dueAmount > 0);
+
+    return {
+      totalRooms,
+      occupiedRooms,
+      totalRent,
+      paidRent,
+      dueRent,
+      dues,
     };
   } catch (error) {
     throw new GraphQLError("Failed to fetch rent summary");

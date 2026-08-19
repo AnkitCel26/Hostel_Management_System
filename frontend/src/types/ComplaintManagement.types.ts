@@ -72,6 +72,7 @@ export interface GetAllComplaintsQueryVariables {
   page: number;
   limit: number;
   search?: string;
+  status?: ComplaintStatus;
 }
 
 export interface UpdateComplaintInput {

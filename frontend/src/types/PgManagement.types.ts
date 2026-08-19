@@ -37,6 +37,7 @@ export interface CreatePgInput {
   pincode: string;
   contactNo: string;
   description: string;
+
 }
 
 export interface UpdatePgInput {
@@ -80,4 +81,16 @@ export interface UpdatePgResponse {
     message: string;
     pg: Pg;
   };
+}
+export interface AllPgs {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  isActive: boolean;
+  rooms: Room[];
+}
+
+export interface GetAllPgsResponse {
+  getAllPgs: AllPgs[];
 }

@@ -12,6 +12,8 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Menu,
+  MenuItem,
   Pagination,
   TextField,
   Typography,
@@ -19,6 +21,7 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import {
   GET_ALL_PGS_ROOMS,
@@ -36,6 +39,7 @@ interface PgForm {
   pincode: string;
   contactNo: string;
   description: string;
+  isActive: boolean;
 }
 
 const emptyForm: PgForm = {
@@ -46,15 +50,19 @@ const emptyForm: PgForm = {
   pincode: "",
   contactNo: "",
   description: "",
+  isActive: true,
 };
 
 const PgManagement = () => {
   const [open, setOpen] = useState(false);
   const [editingPg, setEditingPg] = useState<AllPgs | null>(null);
   const [form, setForm] = useState<PgForm>(emptyForm);
+  const [formError, setFormError] = useState("");
+
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(6);
+  const [limit] = useState(9);
 
   const { data, loading, error } = useQuery(GET_ALL_PGS_ROOMS, {
     variables: {
@@ -72,13 +80,22 @@ const PgManagement = () => {
   const pgs = data?.getAllPgsRooms.items ?? [];
   const totalPages = data?.getAllPgsRooms.totalPages ?? 0;
 
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
   const handleCreate = () => {
+    setFormError("");
     setEditingPg(null);
     setForm(emptyForm);
     setOpen(true);
   };
 
   const handleEdit = (pg: AllPgs) => {
+    setFormError("");
     setEditingPg(pg);
 
     setForm({
@@ -89,6 +106,7 @@ const PgManagement = () => {
       pincode: pg.pincode,
       contactNo: pg.contactNo,
       description: pg.description ?? "",
+      isActive: pg.isActive,
     });
 
     setOpen(true);
@@ -98,15 +116,52 @@ const PgManagement = () => {
     setOpen(false);
     setEditingPg(null);
     setForm(emptyForm);
+    setFormError("");
   };
 
-  const handleChange = (field: keyof PgForm, value: string) => {
+  const handleChange = (field: keyof PgForm, value: string | boolean) => {
+    setFormError("");
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
+  const isFormValid = () => {
+    if (editingPg) {
+      return (
+        form.address.trim() !== "" &&
+        form.city.trim() !== "" &&
+        form.state.trim() !== "" &&
+        form.pincode.trim() !== "" &&
+        form.contactNo.trim() !== "" &&
+        form.description.trim() !== ""
+      );
+    }
 
+    return (
+      form.name.trim() !== "" &&
+      form.address.trim() !== "" &&
+      form.city.trim() !== "" &&
+      form.state.trim() !== "" &&
+      form.pincode.trim() !== "" &&
+      form.contactNo.trim() !== "" &&
+      form.description.trim() !== ""
+    );
+  };
+
+  const isFormChanged = () => {
+    if (!editingPg) return true;
+
+    return (
+      form.address !== editingPg.address ||
+      form.city !== editingPg.city ||
+      form.state !== editingPg.state ||
+      form.pincode !== editingPg.pincode ||
+      form.contactNo !== editingPg.contactNo ||
+      form.description !== (editingPg.description ?? "") ||
+      form.isActive !== editingPg.isActive
+    );
+  };
   const handleSubmit = async () => {
     try {
       if (editingPg) {
@@ -114,6 +169,32 @@ const PgManagement = () => {
           variables: {
             pgId: editingPg.id,
             input: {
+              address: form.address,
+              city: form.city,
+              state: form.state,
+              pincode: form.pincode,
+              contactNo: form.contactNo,
+              description: form.description,
+              isActive: form.isActive,
+            },
+          },
+          refetchQueries: [
+            {
+              query: GET_ALL_PGS_ROOMS,
+              variables: {
+                input: {
+                  page,
+                  limit,
+                },
+              },
+            },
+          ],
+        });
+      } else {
+        await createPg({
+          variables: {
+            input: {
+              name: form.name,
               address: form.address,
               city: form.city,
               state: form.state,
@@ -134,28 +215,15 @@ const PgManagement = () => {
             },
           ],
         });
-      } else {
-        await createPg({
-          variables: {
-            input: form,
-          },
-          refetchQueries: [
-            {
-              query: GET_ALL_PGS_ROOMS,
-              variables: {
-                input: {
-                  page,
-                  limit,
-                },
-              },
-            },
-          ],
-        });
       }
 
       handleClose();
     } catch (error) {
-      console.error(error);
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Failed to save room");
+      }
     }
   };
 
@@ -306,9 +374,36 @@ const PgManagement = () => {
       )}
 
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>{editingPg ? "Edit PG" : "Add New PG"}</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography>{editingPg ? "Edit PG" : "Add New PG"}</Typography>
+
+          {editingPg && (
+            <IconButton onClick={handleMenuOpen}>
+              <MoreVertIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
 
         <DialogContent>
+          {formError && (
+            <Typography
+              color="error"
+              sx={{
+                mb: 2,
+                p: 1.5,
+                backgroundColor: "#FEE2E2",
+                borderRadius: 1,
+              }}
+            >
+              {formError}
+            </Typography>
+          )}
           <Box
             sx={{
               display: "grid",
@@ -385,6 +480,21 @@ const PgManagement = () => {
             />
           </Box>
         </DialogContent>
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleMenuClose}
+        >
+          <MenuItem
+            sx={{ color: "#e10707" }}
+            onClick={() => {
+              handleMenuClose();
+              handleChange("isActive", false);
+            }}
+          >
+            Inactive
+          </MenuItem>
+        </Menu>
 
         <DialogActions>
           <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
@@ -394,7 +504,12 @@ const PgManagement = () => {
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={creating || updating}
+            disabled={
+              creating ||
+              updating ||
+              !isFormValid() ||
+              (!!editingPg && !isFormChanged())
+            }
             sx={{ bgcolor: "#5B21B6" }}
           >
             {creating || updating

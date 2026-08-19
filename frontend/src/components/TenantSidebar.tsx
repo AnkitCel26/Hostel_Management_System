@@ -12,6 +12,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PaymentIcon from "@mui/icons-material/Payment";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import CampaignIcon from "@mui/icons-material/Campaign";
+import SaveIcon from '@mui/icons-material/Save';
 
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -52,6 +53,11 @@ const TenantSidebar = ({ open, onClose }: TenantSidebarProps) => {
       path: "/tenant/announcements",
       icon: <CampaignIcon />,
     },
+    {
+      label: "Document",
+      path: "/tenant/documents",
+      icon: <SaveIcon />,
+    }
   ];
 
   const handleNavigation = (path: string) => {

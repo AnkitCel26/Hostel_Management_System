@@ -6,7 +6,6 @@ import type {
   CreateAnnouncementMutationVariables,
   UpdateAnnouncementMutation,
   UpdateAnnouncementMutationVariables,
-  GetAllPgsRoomsQuery,
   GetAllAnnouncementsQueryVariables,
 } from "../types/AnnouncementManagement.types";
 
@@ -39,15 +38,6 @@ export const GET_ALL_ANNOUNCEMENTS: TypedDocumentNode<
       page
       limit
       totalPages
-    }
-  }
-`;
-
-export const GET_ALL_PGS: TypedDocumentNode<GetAllPgsRoomsQuery> = gql`
-  query GetAllPgsRooms {
-    getAllPgsRooms {
-      id
-      name
     }
   }
 `;

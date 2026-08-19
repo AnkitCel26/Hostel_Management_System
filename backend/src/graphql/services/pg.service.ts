@@ -18,10 +18,11 @@ export const createPg = async (
   contactNo: string,
   description: string,
 ) => {
-  if (!name || !address || !city || !state || !pincode || !contactNo) {
-    throw new GraphQLError("All fields are required");
-  }
   try {
+    if (!name || !address || !city || !state || !pincode || !contactNo) {
+      throw new GraphQLError("All fields are required");
+    }
+
     const pg = pgRepo.create({
       name: name,
       address: address,
@@ -39,36 +40,39 @@ export const createPg = async (
       pg: savedPg,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create Pg: ${error.message}`);
+    }
     throw new GraphQLError("Server Error");
   }
 };
 
 export const updatePg = async (pgId: string, data: UpdatePgArgs) => {
-  const input = data.input;
-
-  const fields = Object.entries(input).filter(
-    ([_, value]) => value !== undefined,
-  );
-
-  if (fields.length === 0) {
-    throw new GraphQLError("At least one field is required");
-  }
-
-  if (input.contactNo && !/^\d{10}$/.test(input.contactNo)) {
-    throw new GraphQLError("Phone number must contain exactly 10 digits");
-  }
-
-  const pg = await pgRepo.findOne({
-    where: {
-      id: pgId,
-    },
-  });
-
-  if (!pg) {
-    throw new GraphQLError("Pg not found");
-  }
-
   try {
+    const input = data.input;
+
+    const fields = Object.entries(input).filter(
+      ([_, value]) => value !== undefined,
+    );
+
+    if (fields.length === 0) {
+      throw new GraphQLError("At least one field is required");
+    }
+
+    if (input.contactNo && !/^\d{10}$/.test(input.contactNo)) {
+      throw new GraphQLError("Phone number must contain exactly 10 digits");
+    }
+
+    const pg = await pgRepo.findOne({
+      where: {
+        id: pgId,
+      },
+    });
+
+    if (!pg) {
+      throw new GraphQLError("Pg not found");
+    }
+
     Object.assign(pg, input);
 
     const updatedPg = await pgRepo.save(pg);
@@ -78,6 +82,9 @@ export const updatePg = async (pgId: string, data: UpdatePgArgs) => {
       pg: updatedPg,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update Pg: ${error.message}`);
+    }
     throw new GraphQLError("Server Error");
   }
 };
@@ -86,58 +93,62 @@ export const getAllPgsRooms = async (input?: {
   page?: number;
   limit?: number;
 }) => {
-  const page = Math.max(input?.page ?? 1, 1);
-  const limit = Math.min(Math.max(input?.limit ?? 10, 1), 100);
+  try {
+    const page = Math.max(input?.page ?? 1, 1);
+    const limit = Math.min(Math.max(input?.limit ?? 10, 1), 100);
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const [pgs, total] = await pgRepo.findAndCount({
-    relations: {
-      rooms: true,
-    },
+    const [pgs, total] = await pgRepo.findAndCount({
+      relations: {
+        rooms: true,
+      },
 
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      address: true,
-      city: true,
-      state: true,
-      pincode: true,
-      contactNo: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-
-      rooms: {
+      select: {
         id: true,
-        pgId: true,
-        roomNo: true,
-        floor: true,
-        capacity: true,
-        occupiedNo: true,
-        monthlyRent: true,
-        status: true,
+        name: true,
+        description: true,
+        address: true,
+        city: true,
+        state: true,
+        pincode: true,
+        contactNo: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
+
+        rooms: {
+          id: true,
+          pgId: true,
+          roomNo: true,
+          floor: true,
+          capacity: true,
+          occupiedNo: true,
+          monthlyRent: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
-    },
 
-    skip,
-    take: limit,
+      skip,
+      take: limit,
 
-    order: {
-      createdAt: "DESC",
-    },
-  });
+      order: {
+        createdAt: "DESC",
+      },
+    });
 
-  return {
-    items: pgs,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+    return {
+      items: pgs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch all PG and room");
+  }
 };
 
 export const getTenantPgRoom = async (userId: string) => {
@@ -176,5 +187,25 @@ export const getTenantPgRoom = async (userId: string) => {
     };
   } catch (error) {
     throw new GraphQLError("Failed to fetch tenant PG and room");
+  }
+};
+
+export const getAllPgs = async () => {
+  try {
+    const Pgs = await pgRepo.find({
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        city: true,
+        state: true,
+      },
+      relations: {
+        rooms: true,
+      },
+    });
+    return Pgs;
+  } catch (error) {
+    throw new GraphQLError("Failed to fetch all pgs");
   }
 };

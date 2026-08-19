@@ -46,6 +46,8 @@ const ComplaintManagement = () => {
   const [selectedComplaint, setSelectedComplaint] =
     useState<AdminComplaint | null>(null);
 
+  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "">("");
+
   const [status, setStatus] = useState<ComplaintStatus>("open");
 
   useEffect(() => {
@@ -62,21 +64,18 @@ const ComplaintManagement = () => {
       page,
       limit,
       search: debouncedSearch,
+      status: statusFilter || undefined,
     },
-    fetchPolicy: "cache-and-network",
   });
 
   const [updateComplaint, { loading: updating }] =
     useMutation(UPDATE_COMPLAINT);
 
-  const complaints: AdminComplaint[] =
-    data?.getAllComplaints.items ?? [];
+  const complaints: AdminComplaint[] = data?.getAllComplaints.items ?? [];
 
-  const totalPages =
-    data?.getAllComplaints.totalPages ?? 0;
+  const totalPages = data?.getAllComplaints.totalPages ?? 0;
 
-  const totalComplaints =
-    data?.getAllComplaints.total ?? 0;
+  const totalComplaints = data?.getAllComplaints.total ?? 0;
 
   const handleEdit = (complaint: AdminComplaint) => {
     setSelectedComplaint(complaint);
@@ -110,6 +109,7 @@ const ComplaintManagement = () => {
               page,
               limit,
               search: debouncedSearch,
+              status: statusFilter || undefined,
             },
           },
         ],
@@ -174,19 +174,7 @@ const ComplaintManagement = () => {
           <Typography>View and manage tenant complaints</Typography>
         </Box>
 
-        <TextField
-          size="small"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tenant, PG, room or complaint"
-          sx={{
-            width: "320px",
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "10px",
-              backgroundColor: "#fff",
-            },
-          }}
-        />
+        
       </Box>
 
       <Box
@@ -226,9 +214,8 @@ const ComplaintManagement = () => {
               }}
             >
               {
-                complaints.filter(
-                  (complaint) => complaint.status === "open",
-                ).length
+                complaints.filter((complaint) => complaint.status === "open")
+                  .length
               }
             </Typography>
           </CardContent>
@@ -275,8 +262,47 @@ const ComplaintManagement = () => {
             </Typography>
           </CardContent>
         </Card>
-      </Box>
 
+      </Box>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 ,mb:2}}>
+          <TextField
+            select
+            size="small"
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as ComplaintStatus | "");
+              setPage(1);
+            }}
+            sx={{
+              width: "180px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+              },
+            }}
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="open">Open</MenuItem>
+            <MenuItem value="in_progress">In Progress</MenuItem>
+            <MenuItem value="resolved">Resolved</MenuItem>
+            <MenuItem value="closed">Closed</MenuItem>
+          </TextField>
+
+          <TextField
+            size="small"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tenant, PG, room or complaint"
+            sx={{
+              width: "320px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+              },
+            }}
+          />
+        </Box>
       <TableContainer component={Card}>
         <Table>
           <TableHead>
@@ -303,13 +329,9 @@ const ComplaintManagement = () => {
             ) : (
               complaints.map((complaint) => (
                 <TableRow key={complaint.id}>
-                  <TableCell>
-                    {complaint.tenant.user.name}
-                  </TableCell>
+                  <TableCell>{complaint.tenant.user.name}</TableCell>
 
-                  <TableCell>
-                    {complaint.tenant.pg.name}
-                  </TableCell>
+                  <TableCell>{complaint.tenant.pg.name}</TableCell>
 
                   <TableCell>
                     {complaint.tenant.room
@@ -327,17 +349,13 @@ const ComplaintManagement = () => {
                       size="small"
                       sx={{
                         color: "#FFFFFF",
-                        backgroundColor: getStatusColor(
-                          complaint.status,
-                        ),
+                        backgroundColor: getStatusColor(complaint.status),
                       }}
                     />
                   </TableCell>
 
                   <TableCell>
-                    {new Date(
-                      Number(complaint.createdAt),
-                    ).toLocaleDateString()}
+                    {new Date(Number(complaint.createdAt)).toLocaleDateString()}
                   </TableCell>
 
                   <TableCell>
@@ -412,29 +430,18 @@ const ComplaintManagement = () => {
         </Table>
       </TableContainer>
 
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        fullWidth
-        maxWidth="sm"
-      >
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle>Update Complaint</DialogTitle>
 
         <DialogContent>
           {selectedComplaint && (
             <Box sx={{ marginTop: 1 }}>
               <Typography sx={{ marginBottom: 2 }}>
-                Tenant:{" "}
-                <strong>
-                  {selectedComplaint.tenant.user.name}
-                </strong>
+                Tenant: <strong>{selectedComplaint.tenant.user.name}</strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                PG:{" "}
-                <strong>
-                  {selectedComplaint.tenant.pg.name}
-                </strong>
+                PG: <strong>{selectedComplaint.tenant.pg.name}</strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
@@ -447,13 +454,11 @@ const ComplaintManagement = () => {
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                Title:{" "}
-                <strong>{selectedComplaint.title}</strong>
+                Title: <strong>{selectedComplaint.title}</strong>
               </Typography>
 
               <Typography sx={{ marginBottom: 2 }}>
-                Description:{" "}
-                {selectedComplaint.description}
+                Description: {selectedComplaint.description}
               </Typography>
 
               <TextField
@@ -461,19 +466,11 @@ const ComplaintManagement = () => {
                 label="Status"
                 fullWidth
                 value={status}
-                onChange={(e) =>
-                  setStatus(
-                    e.target.value as ComplaintStatus,
-                  )
-                }
+                onChange={(e) => setStatus(e.target.value as ComplaintStatus)}
               >
                 <MenuItem value="open">Open</MenuItem>
-                <MenuItem value="in_progress">
-                  In Progress
-                </MenuItem>
-                <MenuItem value="resolved">
-                  Resolved
-                </MenuItem>
+                <MenuItem value="in_progress">In Progress</MenuItem>
+                <MenuItem value="resolved">Resolved</MenuItem>
                 <MenuItem value="closed">Closed</MenuItem>
               </TextField>
             </Box>
@@ -481,17 +478,14 @@ const ComplaintManagement = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button
-            onClick={handleClose}
-            sx={{ color: "#5B21B6" }}
-          >
+          <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
             Cancel
           </Button>
 
           <Button
             variant="contained"
             onClick={handleUpdate}
-            disabled={updating}
+            disabled={updating|| status === selectedComplaint?.status}
             sx={{
               backgroundColor: "#5B21B6",
               "&:hover": {
@@ -499,9 +493,7 @@ const ComplaintManagement = () => {
               },
             }}
           >
-            {updating
-              ? "Updating..."
-              : "Update Status"}
+            {updating ? "Updating..." : "Update Status"}
           </Button>
         </DialogActions>
       </Dialog>

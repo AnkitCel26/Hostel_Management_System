@@ -11,7 +11,7 @@ import {
 
 import AuthContext from "../../context/AuthContext";
 
-import { GET_TENANT_ROOM } from "../../graphql/TenantRoom.api";
+import { GET_TENANT_ROOM } from "../../graphql/tenantRoom.api";
 
 const TenantRoom = () => {
   const { user } = useContext(AuthContext)!;

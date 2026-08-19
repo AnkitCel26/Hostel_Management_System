@@ -21,6 +21,7 @@ import TenantRoom from "../pages/tenants/TenantRoom";
 import TenantPayment from "../pages/tenants/TenantPayment";
 import TenantComplaint from "../pages/tenants/TenantComplaint";
 import TenantAnnouncement from "../pages/tenants/TenantAnnouncement";
+import TenantDocument from "../pages/tenants/TenantDocument";
 
 const AppRoutes = () => {
   return (
@@ -47,6 +48,7 @@ const AppRoutes = () => {
           <Route path="/tenant/payments" element={<TenantPayment />} />
           <Route path="/tenant/complaints" element={<TenantComplaint />} />
           <Route path="/tenant/announcements" element={<TenantAnnouncement />} />
+          <Route path="/tenant/documents" element={<TenantDocument />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoutes />}>

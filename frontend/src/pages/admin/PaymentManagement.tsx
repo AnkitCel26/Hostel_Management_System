@@ -22,20 +22,25 @@ import {
   TableSortLabel,
   TextField,
   Typography,
+  IconButton,
+  Menu,
 } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 import {
   GET_ADMIN_RENT_SUMMARY,
   GET_ALL_RENT_PAYMENTS,
   UPDATE_RENT_PAYMENT,
+  GET_ADMIN_RENT_HISTORY,
 } from "../../graphql/paymentManagement.api";
 
 import type {
   AdminRentPayment,
   AdminRentSummary,
   PaymentMode,
+  PaymentStatus,
 } from "../../types/PaymentManagement.types";
 
 type SortOrder = "ASC" | "DESC";
@@ -52,6 +57,7 @@ const PaymentManagement = () => {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [status, setStatus] = useState<PaymentStatus | "">("");
 
   const [sortBy, setSortBy] = useState("tenant");
   const [sortOrder, setSortOrder] = useState<SortOrder>("ASC");
@@ -63,6 +69,7 @@ const PaymentManagement = () => {
   const [paidAmount, setPaidAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
+  const [dueAnchorEl, setDueAnchorEl] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -77,6 +84,9 @@ const PaymentManagement = () => {
     setSummaryPage(1);
   }, [month, year]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
   const {
     data: summaryData,
     loading: summaryLoading,
@@ -101,55 +111,47 @@ const PaymentManagement = () => {
       search: debouncedSearch,
       sortBy,
       sortOrder,
+      status: status || undefined,
     },
-    fetchPolicy: "cache-and-network",
   });
 
+  const {
+    data: historyData,
+    loading: historyLoading,
+    error: historyError,
+  } = useQuery(GET_ADMIN_RENT_HISTORY, {
+    variables: {
+      month,
+      year,
+    },
+  });
   const [updateRentPayment, { loading: updating }] =
     useMutation(UPDATE_RENT_PAYMENT);
+
+  const rentHistory = historyData?.getAdminRentHistory;
+
+  const totalRooms = rentHistory?.totalRooms ?? 0;
+  const occupiedRooms = rentHistory?.occupiedRooms ?? 0;
+  const totalRent = rentHistory?.totalRent ?? 0;
+  const paidRent = rentHistory?.paidRent ?? 0;
+  const dueRent = rentHistory?.dueRent ?? 0;
+
+  const dues = rentHistory?.dues ?? [];
 
   const summaries: AdminRentSummary[] =
     summaryData?.getAdminRentSummary.items ?? [];
 
-  const summaryTotalPages =
-    summaryData?.getAdminRentSummary.totalPages ?? 0;
+  const summaryTotalPages = summaryData?.getAdminRentSummary.totalPages ?? 0;
 
   const payments: AdminRentPayment[] =
     paymentData?.getAllRentPayments.items ?? [];
 
-  const totalPages =
-    paymentData?.getAllRentPayments.totalPages ?? 0;
-
-  const totalRooms = summaries.reduce(
-    (total, pg) => total + pg.totalRooms,
-    0,
-  );
-
-  const occupiedRooms = summaries.reduce(
-    (total, pg) => total + pg.occupiedRooms,
-    0,
-  );
-
-  const totalRent = summaries.reduce(
-    (total, pg) => total + pg.totalRent,
-    0,
-  );
-
-  const paidRent = summaries.reduce(
-    (total, pg) => total + pg.paidRent,
-    0,
-  );
-
-  const dueRent = summaries.reduce(
-    (total, pg) => total + pg.dueRent,
-    0,
-  );
+  const totalPages = paymentData?.getAllRentPayments.totalPages ?? 0;
+  
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
-      setSortOrder((previous) =>
-        previous === "ASC" ? "DESC" : "ASC",
-      );
+      setSortOrder((previous) => (previous === "ASC" ? "DESC" : "ASC"));
     } else {
       setSortBy(field);
       setSortOrder("ASC");
@@ -158,13 +160,18 @@ const PaymentManagement = () => {
     setPage(1);
   };
 
+  const handleDueOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setDueAnchorEl(event.currentTarget);
+  };
+
+  const handleDueClose = () => {
+    setDueAnchorEl(null);
+  };
   const handleEdit = (payment: AdminRentPayment) => {
     setSelectedPayment(payment);
     setPaidAmount("");
     setPaymentDate(
-      payment.paymentDate
-        ? payment.paymentDate.substring(0, 10)
-        : "",
+      payment.paymentDate ? payment.paymentDate.substring(0, 10) : "",
     );
     setPaymentMode(payment.paymentMode ?? "cash");
     setOpen(true);
@@ -202,6 +209,7 @@ const PaymentManagement = () => {
               search: debouncedSearch,
               sortBy,
               sortOrder,
+              status: status || undefined,
             },
           },
           {
@@ -222,11 +230,11 @@ const PaymentManagement = () => {
     }
   };
 
-  if (summaryLoading || paymentLoading) {
+  if (summaryLoading || paymentLoading || historyLoading) {
     return <Typography>Loading payment details...</Typography>;
   }
 
-  if (summaryError || paymentError) {
+  if (summaryError || paymentError || historyError) {
     return (
       <Typography sx={{ color: "#d32f2f" }}>
         Failed to load payment details.
@@ -316,13 +324,8 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Total Rooms</Typography>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                marginTop: "8px",
-              }}
-            >
+
+            <Typography variant="h5" sx={{ fontWeight: 600, mt: 1 }}>
               {totalRooms}
             </Typography>
           </CardContent>
@@ -331,13 +334,8 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Occupied Rooms</Typography>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                marginTop: "8px",
-              }}
-            >
+
+            <Typography variant="h5" sx={{ fontWeight: 600, mt: 1 }}>
               {occupiedRooms}
             </Typography>
           </CardContent>
@@ -346,14 +344,9 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Expected Rent</Typography>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                marginTop: "8px",
-              }}
-            >
-              ₹{totalRent.toLocaleString()}
+
+            <Typography variant="h5" sx={{ fontWeight: 600, mt: 1 }}>
+              ₹{Number(totalRent).toLocaleString()}
             </Typography>
           </CardContent>
         </Card>
@@ -361,32 +354,90 @@ const PaymentManagement = () => {
         <Card>
           <CardContent>
             <Typography>Collected</Typography>
+
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 600,
-                marginTop: "8px",
+                mt: 1,
                 color: "#2e7d32",
               }}
             >
-              ₹{paidRent.toLocaleString()}
+              ₹{Number(paidRent).toLocaleString()}
             </Typography>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent>
-            <Typography>Due</Typography>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Typography>Due</Typography>
+
+              <IconButton size="small" onClick={handleDueOpen}>
+                <MoreVertIcon />
+              </IconButton>
+            </Box>
+
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 600,
-                marginTop: "8px",
+                mt: 1,
                 color: "#d32f2f",
               }}
             >
-              ₹{dueRent.toLocaleString()}
+              ₹{Number(dueRent).toLocaleString()}
             </Typography>
+
+            <Menu
+              anchorEl={dueAnchorEl}
+              open={Boolean(dueAnchorEl)}
+              onClose={handleDueClose}
+            >
+              {dues.length === 0 ? (
+                <MenuItem disabled>No dues</MenuItem>
+              ) : (
+                dues.map((due, index) => (
+                  <MenuItem
+                    key={`${due.tenantName}-${due.month}-${index}`}
+                    sx={{
+                      display: "block",
+                      minWidth: 300,
+                      whiteSpace: "normal",
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 600 }}>
+                      {due.tenantName}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      {due.pgName} •{" "}
+                      {due.roomNo !== null ? `Room ${due.roomNo}` : "No Room"}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      {due.month} {due.year}
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "#d32f2f",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Due: ₹{Number(due.dueAmount).toLocaleString()}
+                    </Typography>
+                  </MenuItem>
+                ))
+              )}
+            </Menu>
           </CardContent>
         </Card>
       </Box>
@@ -501,20 +552,42 @@ const PaymentManagement = () => {
         >
           Payment History
         </Typography>
+        <Box sx={{ display: "flex", gap: 3 }}>
+          <TextField
+            select
+            size="small"
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as PaymentStatus | "")}
+            sx={{
+              width: "160px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+              },
+            }}
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="partial">Partial</MenuItem>
+            <MenuItem value="paid">Paid</MenuItem>
+            <MenuItem value="overdue">Overdue</MenuItem>
+          </TextField>
 
-        <TextField
-          size="small"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tenant, PG or room"
-          sx={{
-            width: "320px",
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "10px",
-              backgroundColor: "#fff",
-            },
-          }}
-        />
+          <TextField
+            size="small"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tenant, PG or room"
+            sx={{
+              width: "320px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+              },
+            }}
+          />
+        </Box>
       </Box>
 
       <TableContainer component={Card}>
@@ -634,19 +707,13 @@ const PaymentManagement = () => {
               </TableRow>
             ) : (
               payments.map((payment) => {
-                const due =
-                  Number(payment.amount) -
-                  Number(payment.paidAmount);
+                const due = Number(payment.amount) - Number(payment.paidAmount);
 
                 return (
                   <TableRow key={payment.id}>
-                    <TableCell>
-                      {payment.tenant.user.name}
-                    </TableCell>
+                    <TableCell>{payment.tenant.user.name}</TableCell>
 
-                    <TableCell>
-                      {payment.tenant.pg.name}
-                    </TableCell>
+                    <TableCell>{payment.tenant.pg.name}</TableCell>
 
                     <TableCell>
                       {payment.tenant.room
@@ -666,9 +733,7 @@ const PaymentManagement = () => {
                       ₹{Number(payment.paidAmount).toLocaleString()}
                     </TableCell>
 
-                    <TableCell>
-                      ₹{due.toLocaleString()}
-                    </TableCell>
+                    <TableCell>₹{due.toLocaleString()}</TableCell>
 
                     <TableCell>
                       <Chip
@@ -752,36 +817,23 @@ const PaymentManagement = () => {
         </Table>
       </TableContainer>
 
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        fullWidth
-        maxWidth="sm"
-      >
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle>Update Rent Payment</DialogTitle>
 
         <DialogContent>
           {selectedPayment && (
             <Box sx={{ marginTop: "8px" }}>
               <Typography sx={{ marginBottom: "16px" }}>
-                Tenant:{" "}
-                <strong>
-                  {selectedPayment.tenant.user.name}
-                </strong>
+                Tenant: <strong>{selectedPayment.tenant.user.name}</strong>
               </Typography>
 
               <Typography sx={{ marginBottom: "16px" }}>
-                Rent Amount: ₹
-                {Number(
-                  selectedPayment.amount,
-                ).toLocaleString()}
+                Rent Amount: ₹{Number(selectedPayment.amount).toLocaleString()}
               </Typography>
 
               <Typography sx={{ marginBottom: "16px" }}>
                 Already Paid: ₹
-                {Number(
-                  selectedPayment.paidAmount,
-                ).toLocaleString()}
+                {Number(selectedPayment.paidAmount).toLocaleString()}
               </Typography>
 
               <TextField
@@ -789,9 +841,7 @@ const PaymentManagement = () => {
                 type="number"
                 fullWidth
                 value={paidAmount}
-                onChange={(e) =>
-                  setPaidAmount(e.target.value)
-                }
+                onChange={(e) => setPaidAmount(e.target.value)}
                 sx={{ marginBottom: "16px" }}
               />
 
@@ -800,9 +850,7 @@ const PaymentManagement = () => {
                 type="date"
                 fullWidth
                 value={paymentDate}
-                onChange={(e) =>
-                  setPaymentDate(e.target.value)
-                }
+                onChange={(e) => setPaymentDate(e.target.value)}
                 slotProps={{
                   inputLabel: {
                     shrink: true,
@@ -816,11 +864,7 @@ const PaymentManagement = () => {
                 label="Payment Mode"
                 fullWidth
                 value={paymentMode}
-                onChange={(e) =>
-                  setPaymentMode(
-                    e.target.value as PaymentMode,
-                  )
-                }
+                onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
               >
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="upi">UPI</MenuItem>
@@ -831,21 +875,14 @@ const PaymentManagement = () => {
         </DialogContent>
 
         <DialogActions>
-          <Button
-            onClick={handleClose}
-            sx={{ color: "#5B21B6" }}
-          >
+          <Button onClick={handleClose} sx={{ color: "#5B21B6" }}>
             Cancel
           </Button>
 
           <Button
             variant="contained"
             onClick={handleUpdate}
-            disabled={
-              updating ||
-              !paidAmount ||
-              !paymentDate
-            }
+            disabled={updating || !paidAmount || !paymentDate}
             sx={{ bgcolor: "#5B21B6" }}
           >
             {updating ? "Updating..." : "Update Payment"}

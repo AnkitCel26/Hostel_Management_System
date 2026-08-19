@@ -30,6 +30,7 @@ import {
 } from "../../graphql/roomManagement.api";
 
 import type { Room } from "../../types/RoomManagement.types";
+import { GET_ALL_PGS } from "../../graphql/pgManagement.api";
 
 interface RoomForm {
   pgId: string;
@@ -55,6 +56,7 @@ const RoomManagement = () => {
   const [open, setOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [form, setForm] = useState<RoomForm>(emptyForm);
+  const [formError, setFormError] = useState("");
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -78,22 +80,27 @@ const RoomManagement = () => {
       search: debouncedSearch,
     },
   });
-  console.log(data?.getAllRooms);
 
   const [createRoom, { loading: creating }] = useMutation(CREATE_ROOM);
 
   const [updateRoom, { loading: updating }] = useMutation(UPDATE_ROOM);
 
+  const { data: pgData } = useQuery(GET_ALL_PGS);
+
+  const pgs = pgData?.getAllPgs ?? [];
+
   const rooms = data?.getAllRooms.items ?? [];
   const totalPages = data?.getAllRooms.totalPages ?? 1;
 
   const handleCreate = () => {
+    setFormError("");
     setEditingRoom(null);
     setForm(emptyForm);
     setOpen(true);
   };
 
   const handleEdit = (room: Room) => {
+    setFormError("");
     setEditingRoom(room);
 
     setForm({
@@ -110,12 +117,14 @@ const RoomManagement = () => {
   };
 
   const handleClose = () => {
+    setFormError("");
     setOpen(false);
     setEditingRoom(null);
     setForm(emptyForm);
   };
 
   const handleChange = (field: keyof RoomForm, value: string) => {
+    setFormError("");
     setForm((previous) => ({
       ...previous,
       [field]: value,
@@ -172,8 +181,39 @@ const RoomManagement = () => {
 
       handleClose();
     } catch (error) {
-      console.error(error);
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Failed to save room");
+      }
     }
+  };
+  const isFormValid = () => {
+    if (editingRoom) {
+      return (
+        form.occupiedNo.trim() !== "" &&
+        form.monthlyRent.trim() !== "" &&
+        form.status.trim() !== ""
+      );
+    }
+
+    return (
+      form.pgId.trim() !== "" &&
+      form.roomNo.trim() !== "" &&
+      form.floor.trim() !== "" &&
+      form.capacity.trim() !== "" &&
+      form.occupiedNo.trim() !== "" &&
+      form.monthlyRent.trim() !== ""
+    );
+  };
+  const isFormChanged = () => {
+    if (!editingRoom) return true;
+
+    return (
+      form.occupiedNo !== String(editingRoom.occupiedNo) ||
+      form.monthlyRent !== String(editingRoom.monthlyRent) ||
+      form.status !== editingRoom.status
+    );
   };
 
   if (loading) {
@@ -353,6 +393,19 @@ const RoomManagement = () => {
         <DialogTitle>{editingRoom ? "Edit Room" : "Add New Room"}</DialogTitle>
 
         <DialogContent>
+          {formError && (
+            <Typography
+              color="error"
+              sx={{
+                mb: 2,
+                p: 1.5,
+                backgroundColor: "#FEE2E2",
+                borderRadius: 1,
+              }}
+            >
+              {formError}
+            </Typography>
+          )}
           <Box
             sx={{
               display: "grid",
@@ -368,7 +421,13 @@ const RoomManagement = () => {
               disabled={Boolean(editingRoom)}
               onChange={(e) => handleChange("pgId", e.target.value)}
             >
-              <MenuItem value={form.pgId}>{form.pgId}</MenuItem>
+              {pgs
+                .filter((pg) => pg.isActive)
+                .map((pg) => (
+                  <MenuItem key={pg.id} value={pg.id}>
+                    {pg.name}
+                  </MenuItem>
+                ))}
             </TextField>
 
             <Box
@@ -447,7 +506,12 @@ const RoomManagement = () => {
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={creating || updating}
+            disabled={
+              creating ||
+              updating ||
+              !isFormValid() ||
+              (!!editingRoom && !isFormChanged())
+            }
             sx={{
               bgcolor: "#5B21B6",
               "&:hover": {

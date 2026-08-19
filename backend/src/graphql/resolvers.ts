@@ -18,6 +18,7 @@ import type {
 import type { CreatePgArgs, UpdatePgArgs } from "./types/pg.types.ts";
 import {
   createPg,
+  getAllPgs,
   getAllPgsRooms,
   getTenantPgRoom,
   updatePg,
@@ -39,6 +40,8 @@ import type {
   UpdateTenantArgs,
 } from "./types/tenant.types.ts";
 import {
+  deleteTenantDocuments,
+  getTenantDocuments,
   updateTenantDocs,
   uploadTenantDocs,
 } from "./services/tenant_docs.service.ts";
@@ -48,6 +51,7 @@ import type {
 } from "./types/tenant_doc.types.ts";
 import {
   createRentPayment,
+  getAdminRentHistory,
   getAdminRentSummary,
   getAllRentPayments,
   updateRentPayment,
@@ -79,6 +83,8 @@ import type {
 import type { GraphQLContext } from "./types/context.types.ts";
 import { requireAdmin, requireAuth } from "../authUtility/authmiddleware.ts";
 import { refreshAccessToken } from "./services/auth.service.ts";
+import type { ComplaintStatus } from "../entities/complaint.entity.ts";
+import type { PaymentStatus } from "../entities/rent_payment.entity.ts";
 export const resolvers = {
   Query: {
     me: async (
@@ -155,6 +161,7 @@ export const resolvers = {
         search?: string;
         sortBy?: string;
         sortOrder?: string;
+        status?: PaymentStatus;
       },
       context: GraphQLContext,
       info: unknown,
@@ -167,6 +174,7 @@ export const resolvers = {
         args.search,
         args.sortBy,
         args.sortOrder,
+        args.status,
       );
     },
 
@@ -205,13 +213,14 @@ export const resolvers = {
         page: number;
         limit: number;
         search?: string;
+        status?: ComplaintStatus;
       },
       context: GraphQLContext,
       info: unknown,
     ) => {
       requireAdmin(context);
 
-      return getAllComplaints(args.page, args.limit, args.search);
+      return getAllComplaints(args.page, args.limit, args.search, args.status);
     },
 
     getTenantPgAnnouncements: async (
@@ -276,6 +285,44 @@ export const resolvers = {
       requireAdmin(context);
 
       return getAdminDashboardStats();
+    },
+
+    getTenantDocuments: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      const user = requireAuth(context);
+
+      return getTenantDocuments(user.id);
+    },
+
+    getAllPgs: async (
+      parent: unknown,
+      args: unknown,
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      await requireAdmin(context);
+
+      return await getAllPgs();
+    },
+
+    getAdminRentHistory: async (
+      parent: unknown,
+      args: {
+        month: string;
+        year: number;
+      },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAdmin(context);
+
+      const { month, year } = args;
+
+      return getAdminRentHistory(month, year);
     },
   },
   Mutation: {
@@ -420,10 +467,10 @@ export const resolvers = {
       context: GraphQLContext,
       info: unknown,
     ) => {
-      requireAuth(context);
-      const { tenantId, documentType, fileUrl } = args.input;
+      const user = requireAuth(context);
+      const { documentType, fileUrl } = args.input;
 
-      return uploadTenantDocs(tenantId, documentType, fileUrl);
+      return uploadTenantDocs(user.id, documentType, fileUrl);
     },
 
     updateTenantDocs: async (
@@ -436,6 +483,20 @@ export const resolvers = {
       const { documentId, input } = args;
 
       return updateTenantDocs(documentId, input.documentType, input.fileUrl);
+    },
+
+    deleteTenantDocuments: async (
+      parent: unknown,
+      args: {
+        documentId: string;
+      },
+      context: GraphQLContext,
+      info: unknown,
+    ) => {
+      requireAuth(context);
+      const { documentId } = args;
+
+      return deleteTenantDocuments(documentId);
     },
 
     createRentPayment: async (
@@ -474,7 +535,7 @@ export const resolvers = {
       context: GraphQLContext,
       info: unknown,
     ) => {
-      requireAdmin(context);
+      requireAuth(context);
       const { paymentId, input } = args;
 
       return updateRentPayment(

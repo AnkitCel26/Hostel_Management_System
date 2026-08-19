@@ -91,6 +91,7 @@ export interface GetAllRentPaymentsVariables {
   search?: string;
   sortBy?: string;
   sortOrder?: string;
+  status?: PaymentStatus|null;
 }
 
 export interface UpdateRentPaymentInput {
@@ -109,4 +110,31 @@ export interface UpdateRentPaymentResponse {
     message: string;
     payment: AdminRentPayment;
   };
+}
+
+export interface RentDue {
+  tenantName: string;
+  pgName: string;
+  roomNo: number | null;
+  dueAmount: number;
+  month: string;
+  year: number;
+}
+
+export interface AdminRentHistory {
+  totalRooms: number;
+  occupiedRooms: number;
+  totalRent: number;
+  paidRent: number;
+  dueRent: number;
+  dues: RentDue[];
+}
+
+export interface GetAdminRentHistoryResponse {
+  getAdminRentHistory: AdminRentHistory;
+}
+
+export interface GetAdminRentHistoryVariables {
+  month: string;
+  year: number;
 }

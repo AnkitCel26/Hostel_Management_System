@@ -12,44 +12,51 @@ export const createAnnouncement = async (
   title: string,
   content: string,
 ) => {
-  if (!userId || !pgId) {
-    throw new GraphQLError("Unauthorized");
-  }
-
-  if (!title || !content) {
-    throw new GraphQLError("Title and content are required");
-  }
-
-  return AppDataSource.transaction(async (manager) => {
-    const announcementRepo = manager.getRepository(Announcement);
-
-    const announcement = announcementRepo.create({
-      pgId,
-      createdBy: userId,
-      title,
-      content,
-    });
-
-    const savedAnnouncement = await announcementRepo.save(announcement);
-
-    const announcementWithPg = await announcementRepo.findOne({
-      where: {
-        id: savedAnnouncement.id,
-      },
-      relations: {
-        pg: true,
-      },
-    });
-
-    if (!announcementWithPg) {
-      throw new GraphQLError("Announcement not found");
+  try {
+    if (!userId || !pgId) {
+      throw new GraphQLError("Unauthorized");
     }
 
-    return {
-      message: "Announcement created successfully",
-      announcement: announcementWithPg,
-    };
-  });
+    if (!title || !content) {
+      throw new GraphQLError("Title and content are required");
+    }
+
+    return AppDataSource.transaction(async (manager) => {
+      const announcementRepo = manager.getRepository(Announcement);
+
+      const announcement = announcementRepo.create({
+        pgId,
+        createdBy: userId,
+        title,
+        content,
+      });
+
+      const savedAnnouncement = await announcementRepo.save(announcement);
+
+      const announcementWithPg = await announcementRepo.findOne({
+        where: {
+          id: savedAnnouncement.id,
+        },
+        relations: {
+          pg: true,
+        },
+      });
+
+      if (!announcementWithPg) {
+        throw new GraphQLError("Announcement not found");
+      }
+
+      return {
+        message: "Announcement created successfully",
+        announcement: announcementWithPg,
+      };
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create announcement: ${error.message}`);
+    }
+    throw new GraphQLError("Failed to create announcement");
+  }
 };
 
 export const updateAnnouncement = async (
@@ -97,6 +104,9 @@ export const updateAnnouncement = async (
       };
     });
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update announcement: ${error.message}`);
+    }
     throw new GraphQLError("Failed to update announcement");
   }
 };

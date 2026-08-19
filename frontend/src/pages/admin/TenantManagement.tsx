@@ -26,10 +26,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import {
   GET_ALL_TENANTS,
   GET_ALL_USERS,
-  GET_ALL_PGS_ROOMS,
   CREATE_TENANT,
   UPDATE_TENANT,
 } from "../../graphql/tenantManagement.api";
+import { GET_ALL_PGS } from "../../graphql/pgManagement.api";
 
 import type {
   AllTenant,
@@ -74,7 +74,7 @@ const TenantManagement = () => {
 
   const { data: userData, loading: userLoading } = useQuery(GET_ALL_USERS);
 
-  const { data: pgData, loading: pgLoading } = useQuery(GET_ALL_PGS_ROOMS);
+  const { data: pgData, loading: pgLoading } = useQuery(GET_ALL_PGS);
 
   const [createTenant, { loading: creating }] = useMutation(CREATE_TENANT);
 
@@ -84,7 +84,7 @@ const TenantManagement = () => {
   const totalPages = tenantData?.getAllTenants.totalPages ?? 0;
 
   const users = userData?.allUsers ?? [];
-  const pgs = pgData?.getAllPgsRooms ?? [];
+  const pgs = pgData?.getAllPgs ?? [];
 
   const selectedPg = pgs.find((pg) => pg.id === form.pgId);
 
@@ -149,6 +149,15 @@ const TenantManagement = () => {
     }));
   };
 
+  const isFormChanged = () => {
+    if (!editingTenant) return true;
+
+    return (
+      form.joiningDate !== editingTenant.joiningDate ||
+      form.status !== editingTenant.status ||
+      form.roomId !== (editingTenant.roomId ?? "")
+    );
+  };
   const handleSubmit = async () => {
     try {
       if (editingTenant) {
@@ -171,7 +180,7 @@ const TenantManagement = () => {
                 limit,
               },
             },
-            { query: GET_ALL_PGS_ROOMS },
+            { query: GET_ALL_PGS },
           ],
         });
       } else {
@@ -194,7 +203,7 @@ const TenantManagement = () => {
                 limit,
               },
             },
-            { query: GET_ALL_PGS_ROOMS },
+            { query: GET_ALL_PGS },
           ],
         });
       }
@@ -465,7 +474,8 @@ const TenantManagement = () => {
               updating ||
               !form.userId ||
               !form.pgId ||
-              !form.joiningDate
+              !form.joiningDate ||
+              (!!editingTenant && !isFormChanged())
             }
             sx={{ bgcolor: "#5B21B6" }}
           >

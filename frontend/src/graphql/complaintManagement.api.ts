@@ -15,11 +15,13 @@ export const GET_ALL_COMPLAINTS: TypedDocumentNode<
     $page: Int!
     $limit: Int!
     $search: String
+    $status: ComplaintStatus
   ) {
     getAllComplaints(
       page: $page
       limit: $limit
       search: $search
+      status: $status
     ) {
       items {
         id

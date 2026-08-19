@@ -5,7 +5,7 @@ import { Box, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 
 import AuthContext from "../../context/AuthContext";
 
-import { GET_TENANT_DASHBOARD } from "../../graphql/TenantDashboard.api";
+import { GET_TENANT_DASHBOARD } from "../../graphql/tenantDashboard.api";
 
 import type { Complaint } from "../../types/TenantDashboard.types";
 

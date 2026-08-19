@@ -139,42 +139,49 @@ export const updateProfile = async (
   name?: string,
   phone?: string,
 ) => {
-  if (!name && !phone) {
-    throw new GraphQLError("At least one field is required");
+  try {
+    if (!name && !phone) {
+      throw new GraphQLError("At least one field is required");
+    }
+
+    if (phone && !/^\d{10}$/.test(phone)) {
+      throw new GraphQLError("Phone number must contain exactly 10 digits");
+    }
+
+    const user = await userRepo.findOne({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      throw new GraphQLError("User not found");
+    }
+
+    if (!user.isActive) {
+      throw new GraphQLError("User account is inactive");
+    }
+
+    if (name) {
+      user.name = name;
+    }
+
+    if (phone) {
+      user.phone = phone;
+    }
+
+    const updatedUser = await userRepo.save(user);
+
+    return {
+      message: "Profile updated successfully",
+      user: updatedUser,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update profile: ${error.message}`);
+    }
+    throw new GraphQLError("Failed to updated profile");
   }
-
-  if (phone && !/^\d{10}$/.test(phone)) {
-    throw new GraphQLError("Phone number must contain exactly 10 digits");
-  }
-
-  const user = await userRepo.findOne({
-    where: {
-      id: userId,
-    },
-  });
-
-  if (!user) {
-    throw new GraphQLError("User not found");
-  }
-
-  if (!user.isActive) {
-    throw new GraphQLError("User account is inactive");
-  }
-
-  if (name) {
-    user.name = name;
-  }
-
-  if (phone) {
-    user.phone = phone;
-  }
-
-  const updatedUser = await userRepo.save(user);
-
-  return {
-    message: "Profile updated successfully",
-    user: updatedUser,
-  };
 };
 
 export const allUsers = async () => {
@@ -185,7 +192,7 @@ export const allUsers = async () => {
         name: true,
         email: true,
         role: true,
-        phone:true,
+        phone: true,
         isActive: true,
       },
     });
@@ -250,8 +257,6 @@ export const getAdminDashboardStats = async () => {
       availableRooms,
     };
   } catch (error) {
-    throw new GraphQLError(
-      "Failed to fetch admin dashboard statistics",
-    );
+    throw new GraphQLError("Failed to fetch admin dashboard statistics");
   }
 };

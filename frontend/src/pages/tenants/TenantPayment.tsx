@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 
 import AuthContext from "../../context/AuthContext";
 
@@ -30,15 +31,21 @@ import {
   CREATE_RENT_PAYMENT,
   GET_RENT_PAYMENT_HISTORY,
 } from "../../graphql/tenantPayment.api";
+import { UPDATE_RENT_PAYMENT } from "../../graphql/paymentManagement.api";
 
-import type {
-  PaymentMode,
-} from "../../types/TenantPayment.types";
+import type { PaymentMode, RentPayment } from "../../types/TenantPayment.types";
 
 const TenantPayment = () => {
   const { user } = useContext(AuthContext)!;
 
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<RentPayment | null>(
+    null,
+  );
+
+  const [updateRentPayment, { loading: updating, error: updateError }] =
+    useMutation(UPDATE_RENT_PAYMENT);
 
   const [month, setMonth] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
@@ -62,7 +69,26 @@ const TenantPayment = () => {
   const payments = paymentData?.paymentHistory ?? [];
   const tenantId = data?.getTenantPgRoom?.tenant?.id;
 
+  const handleEdit = (payment: RentPayment) => {
+    setSelectedPayment(payment);
 
+    setPaidAmount("");
+    setPaymentDate(
+      payment.paymentDate ? payment.paymentDate.substring(0, 10) : "",
+    );
+
+    setPaymentMode(payment.paymentMode ?? "cash");
+
+    setEditOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditOpen(false);
+    setSelectedPayment(null);
+    setPaidAmount("");
+    setPaymentDate("");
+    setPaymentMode("cash");
+  };
   useEffect(() => {
     if (paymentData) {
       setAmount(String(paymentData.monthlyRent));
@@ -84,6 +110,41 @@ const TenantPayment = () => {
     setOpen(false);
   };
 
+  const handleUpdate = async () => {
+    if (!selectedPayment) {
+      return;
+    }
+
+    if (!paidAmount || !paymentDate || !paymentMode) {
+      return;
+    }
+
+    try {
+      await updateRentPayment({
+        variables: {
+          paymentId: selectedPayment.id,
+          input: {
+            paidAmount: Number(paidAmount),
+            paymentDate,
+            paymentMode,
+          },
+        },
+
+        refetchQueries: [
+          {
+            query: GET_RENT_PAYMENT_HISTORY,
+            variables: {
+              userId: user?.id ?? "",
+            },
+          },
+        ],
+      });
+
+      handleEditClose();
+    } catch (error) {
+      console.error(error);
+    }
+  };
   const handleCreate = async () => {
     if (!tenantId) {
       return;
@@ -147,11 +208,7 @@ const TenantPayment = () => {
     return value;
   };
   if (!data) {
-    return (
-      <Typography >
-        No Payment data found...
-      </Typography>
-    );
+    return <Typography>No Payment data found...</Typography>;
   }
 
   if (loading) {
@@ -159,11 +216,20 @@ const TenantPayment = () => {
   }
 
   if (error) {
-    return <Typography sx={{color:"#DC2626"}}>Failed to load payments.</Typography>;
+    return (
+      <Typography sx={{ color: "#DC2626" }}>
+        Failed to load payments.
+      </Typography>
+    );
   }
 
   const totalPaid = payments.reduce(
     (total, payment) => total + payment.paidAmount,
+    0,
+  );
+  const totalDue = payments.reduce(
+    (total, payment) =>
+      total + (Number(payment.amount) - Number(payment.paidAmount)),
     0,
   );
 
@@ -252,6 +318,22 @@ const TenantPayment = () => {
             </Typography>
           </CardContent>
         </Card>
+        <Card sx={{ flex: 1 }}>
+          <CardContent>
+            <Typography>Due Amount</Typography>
+
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                mt: 1,
+                color: "#DC2626",
+              }}
+            >
+              ₹{totalDue.toLocaleString()}
+            </Typography>
+          </CardContent>
+        </Card>
       </Stack>
 
       <TableContainer component={Card}>
@@ -266,13 +348,14 @@ const TenantPayment = () => {
               <TableCell>Payment Date</TableCell>
               <TableCell>Payment Mode</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Action</TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
             {payments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   No payments found
                 </TableCell>
               </TableRow>
@@ -289,7 +372,13 @@ const TenantPayment = () => {
 
                   <TableCell>{formatDate(payment.dueDate)}</TableCell>
 
-                  <TableCell>{formatDate(new Date(Number(payment.paymentDate)).toLocaleDateString())}</TableCell>
+                  <TableCell>
+                    {formatDate(
+                      new Date(
+                        Number(payment.paymentDate),
+                      ).toLocaleDateString(),
+                    )}
+                  </TableCell>
 
                   <TableCell>
                     {payment.paymentMode
@@ -307,6 +396,22 @@ const TenantPayment = () => {
                           payment.status === "paid" ? "#16A34A" : "#F59E0B",
                       }}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<EditIcon />}
+                      onClick={() => handleEdit(payment)}
+                      sx={{
+                        backgroundColor: "#5B21B6",
+                        "&:hover": {
+                          backgroundColor: "#4C1D95",
+                        },
+                      }}
+                    >
+                      Update
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -438,6 +543,97 @@ const TenantPayment = () => {
             }}
           >
             {creating ? "Creating..." : "Create Payment"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={editOpen} onClose={handleEditClose} fullWidth maxWidth="sm">
+        <DialogTitle>Update Rent Payment</DialogTitle>
+
+        <DialogContent>
+          {selectedPayment && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {updateError && (
+                <Typography sx={{ color: "#DC2626" }}>
+                  {updateError.message}
+                </Typography>
+              )}
+
+              <Typography>
+                Month: <strong>{selectedPayment.month}</strong>
+              </Typography>
+
+              <Typography>
+                Year: <strong>{selectedPayment.year}</strong>
+              </Typography>
+
+              <Typography>
+                Rent Amount: <strong>₹{selectedPayment.amount}</strong>
+              </Typography>
+
+              <Typography>
+                Already Paid: <strong>₹{selectedPayment.paidAmount}</strong>
+              </Typography>
+
+              <TextField
+                label="Additional Paid Amount"
+                type="number"
+                fullWidth
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+              />
+
+              <TextField
+                label="Payment Date"
+                type="date"
+                fullWidth
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                slotProps={{
+                  inputLabel: {
+                    shrink: true,
+                  },
+                }}
+              />
+
+              <TextField
+                select
+                label="Payment Mode"
+                fullWidth
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+              >
+                <MenuItem value="cash">Cash</MenuItem>
+                <MenuItem value="upi">UPI</MenuItem>
+                <MenuItem value="card">Card</MenuItem>
+              </TextField>
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleEditClose} sx={{ color: "#5B21B6" }}>
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={handleUpdate}
+            disabled={
+              updating ||
+              !selectedPayment?.amount ||
+              !selectedPayment?.dueDate ||
+              !paidAmount ||
+              !paymentDate ||
+              !paymentMode
+            }
+            sx={{
+              backgroundColor: "#5B21B6",
+              "&:hover": {
+                backgroundColor: "#4C1D95",
+              },
+            }}
+          >
+            {updating ? "Updating..." : "Update Payment"}
           </Button>
         </DialogActions>
       </Dialog>

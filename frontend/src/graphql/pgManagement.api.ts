@@ -6,6 +6,7 @@ import type {
   UpdatePgResponse,
   UpdatePgVariables,
   CreatePgVariables,
+  GetAllPgsResponse,
 } from "../types/PgManagement.types";
 
 export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
@@ -52,49 +53,67 @@ export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
   }
 `;
 
-export const CREATE_PG: TypedDocumentNode<
-  CreatePgResponse,
-  CreatePgVariables
-> = gql`
-  mutation CreatePg($input: CreatePgInput!) {
-    createPg(input: $input) {
-      message
-      pg {
-        id
-        name
-        address
-        city
-        state
-        pincode
-        contactNo
-        description
-        isActive
-        createdAt
-        updatedAt
+export const CREATE_PG: TypedDocumentNode<CreatePgResponse, CreatePgVariables> =
+  gql`
+    mutation CreatePg($input: CreatePgInput!) {
+      createPg(input: $input) {
+        message
+        pg {
+          id
+          name
+          address
+          city
+          state
+          pincode
+          contactNo
+          description
+          isActive
+          createdAt
+          updatedAt
+        }
       }
     }
-  }
-`;
+  `;
 
-export const UPDATE_PG: TypedDocumentNode<
-  UpdatePgResponse,
-  UpdatePgVariables
-> = gql`
-  mutation UpdatePg($pgId: String!, $input: UpdatePgInput!) {
-    updatePg(pgId: $pgId, input: $input) {
-      message
-      pg {
+export const UPDATE_PG: TypedDocumentNode<UpdatePgResponse, UpdatePgVariables> =
+  gql`
+    mutation UpdatePg($pgId: String!, $input: UpdatePgInput!) {
+      updatePg(pgId: $pgId, input: $input) {
+        message
+        pg {
+          id
+          name
+          address
+          city
+          state
+          pincode
+          contactNo
+          description
+          isActive
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  `;
+
+export const GET_ALL_PGS:TypedDocumentNode<GetAllPgsResponse> = gql`
+  query GetAllPgs {
+    getAllPgs {
+       id
+      name
+      city
+      state
+      isActive
+      rooms {
         id
-        name
-        address
-        city
-        state
-        pincode
-        contactNo
-        description
-        isActive
-        createdAt
-        updatedAt
+        pgId
+        roomNo
+        floor
+        capacity
+        occupiedNo
+        monthlyRent
+        status
       }
     }
   }

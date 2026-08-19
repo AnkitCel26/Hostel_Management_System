@@ -1,6 +1,8 @@
 import { gql, type TypedDocumentNode } from "@apollo/client";
 
 import type {
+  GetAdminRentHistoryResponse,
+  GetAdminRentHistoryVariables,
   GetAdminRentSummaryResponse,
   GetAdminRentSummaryVariables,
   GetAllRentPaymentsResponse,
@@ -53,6 +55,7 @@ export const GET_ALL_RENT_PAYMENTS: TypedDocumentNode<
     $search: String
     $sortBy: String
     $sortOrder: String
+    $status: PaymentStatus
   ) {
     getAllRentPayments(
       page: $page
@@ -60,6 +63,7 @@ export const GET_ALL_RENT_PAYMENTS: TypedDocumentNode<
       search: $search
       sortBy: $sortBy
       sortOrder: $sortOrder
+      status:$status
     ) {
       items {
         id
@@ -125,6 +129,29 @@ export const UPDATE_RENT_PAYMENT: TypedDocumentNode<
         paymentDate
         paymentMode
         status
+      }
+    }
+  }
+`;
+
+export const GET_ADMIN_RENT_HISTORY: TypedDocumentNode<
+  GetAdminRentHistoryResponse,
+  GetAdminRentHistoryVariables
+> = gql`
+  query GetAdminRentHistory($month: String!, $year: Int!) {
+    getAdminRentHistory(month: $month, year: $year) {
+      totalRooms
+      occupiedRooms
+      totalRent
+      paidRent
+      dueRent
+      dues {
+        tenantName
+        pgName
+        roomNo
+        dueAmount
+        month
+        year
       }
     }
   }

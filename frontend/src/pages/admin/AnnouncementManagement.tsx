@@ -22,7 +22,6 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import {
   GET_ALL_ANNOUNCEMENTS,
-  GET_ALL_PGS,
   CREATE_ANNOUNCEMENT,
   UPDATE_ANNOUNCEMENT,
 } from "../../graphql/announcementManagement.api";
@@ -30,6 +29,7 @@ import {
 import type {
   Announcement,
 } from "../../types/AnnouncementManagement.types";
+import { GET_ALL_PGS } from "../../graphql/pgManagement.api";
 
 const AnnouncementManagement = () => {
   const [createOpen, setCreateOpen] = useState(false);
@@ -67,7 +67,7 @@ const AnnouncementManagement = () => {
 
   const totalPages = data?.getAllAnnouncements.totalPages ?? 1;
 
-  const pgs = pgData?.getAllPgsRooms ?? [];
+  const pgs = pgData?.getAllPgs ?? [];
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);

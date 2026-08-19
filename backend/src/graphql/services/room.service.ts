@@ -5,14 +5,19 @@ import type { CreateRoomArgs, UpdateRoomArgs } from "../types/room.types.ts";
 
 const roomRepo = AppDataSource.getRepository(Room);
 
-export const createRoom = async (
-  data: CreateRoomArgs,
-) => {
-    const input = data.input;
-  if (!input.pgId || !input.roomNo || !input.floor || !input.capacity || !String(input.occupiedNo) || !input.monthlyRent) {
-    throw new GraphQLError("All fields are required");
-  }
+export const createRoom = async (data: CreateRoomArgs) => {
   try {
+    const input = data.input;
+    if (
+      !input.pgId ||
+      !input.roomNo ||
+      !input.floor ||
+      !input.capacity ||
+      !String(input.occupiedNo) ||
+      !input.monthlyRent
+    ) {
+      throw new GraphQLError("All fields are required");
+    }
     const room = roomRepo.create({
       pgId: input.pgId,
       roomNo: input.roomNo,
@@ -29,32 +34,35 @@ export const createRoom = async (
       room: savedRoom,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to create Room: ${error.message}`);
+    }
     throw new GraphQLError("Server Error");
   }
 };
 
 export const updateRoom = async (roomId: string, data: UpdateRoomArgs) => {
-  const input = data.input;
-
-  const fields = Object.entries(input).filter(
-    ([_, value]) => value !== undefined,
-  );
-
-  if (fields.length === 0) {
-    throw new GraphQLError("At least one field is required");
-  }
-
-  const room = await roomRepo.findOne({
-    where: {
-      id: roomId,
-    },
-  });
-
-  if (!room) {
-    throw new GraphQLError("Room not found");
-  }
-
   try {
+    const input = data.input;
+
+    const fields = Object.entries(input).filter(
+      ([_, value]) => value !== undefined,
+    );
+
+    if (fields.length === 0) {
+      throw new GraphQLError("At least one field is required");
+    }
+
+    const room = await roomRepo.findOne({
+      where: {
+        id: roomId,
+      },
+    });
+
+    if (!room) {
+      throw new GraphQLError("Room not found");
+    }
+
     Object.assign(room, input);
 
     const updatedRoom = await roomRepo.save(room);
@@ -64,10 +72,12 @@ export const updateRoom = async (roomId: string, data: UpdateRoomArgs) => {
       room: updatedRoom,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new GraphQLError(`Failed to update Pg: ${error.message}`);
+    }
     throw new GraphQLError("Server Error");
   }
 };
-
 
 export const getAllRooms = async (
   page: number = 1,
