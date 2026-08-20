@@ -117,6 +117,7 @@ export const resolvers = {
         input?: {
           page?: number;
           limit?: number;
+          search?: string;
         };
       },
       context: GraphQLContext,

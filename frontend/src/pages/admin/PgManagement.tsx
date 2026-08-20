@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import {
@@ -60,15 +60,26 @@ const PgManagement = () => {
   const [formError, setFormError] = useState("");
 
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [limit] = useState(9);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const { data, loading, error } = useQuery(GET_ALL_PGS_ROOMS, {
     variables: {
       input: {
         page,
         limit,
+        search: debouncedSearch,
       },
     },
   });
@@ -210,6 +221,7 @@ const PgManagement = () => {
                 input: {
                   page,
                   limit,
+                  search: debouncedSearch,
                 },
               },
             },
@@ -264,6 +276,33 @@ const PgManagement = () => {
           Add PG
         </Button>
       </Box>
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search for PG..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+          }}
+          sx={{
+            width: { xs: "80%", sm: "60%", md: "40%" },
+
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": {
+                borderColor: "#5B21B6",
+                borderRadius: 3,
+                width: "70%",
+              },
+              "&:hover fieldset": {
+                borderColor: "#5B21B6",
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: "#5B21B6",
+              },
+            },
+          }}
+        />
+      </Box>
 
       <Box
         sx={{
@@ -294,7 +333,9 @@ const PgManagement = () => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6">{pg.name}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {pg.name}
+                </Typography>
 
                 <Chip
                   label={pg.isActive ? "Active" : "Inactive"}

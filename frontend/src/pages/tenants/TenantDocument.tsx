@@ -35,6 +35,8 @@ const TenantDocument = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
   const { data, loading, error: queryError } = useQuery(GET_TENANT_DOCUMENTS);
 
@@ -69,17 +71,33 @@ const TenantDocument = () => {
     setDocType("aadhaar");
     setError(null);
   };
-  const handleDelete = async (documentId: string) => {
+  const handleDelete = (documentId: string) => {
+    setDocumentToDelete(documentId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!documentToDelete) return;
+
     try {
       await deleteTenantDocument({
         variables: {
-          documentId,
+          documentId: documentToDelete,
         },
         refetchQueries: [GET_TENANT_DOCUMENTS],
       });
+
+      setDeleteDialogOpen(false);
+      setDocumentToDelete(null);
     } catch (error) {
       console.error(error);
     }
+  };
+  const handleDeleteCancel = () => {
+    if (deleting) return;
+
+    setDeleteDialogOpen(false);
+    setDocumentToDelete(null);
   };
   const handleUpload = async () => {
     if (!fileUpload) {
@@ -485,6 +503,62 @@ const TenantDocument = () => {
             }}
           >
             {uploading ? "Uploading..." : "Upload Document"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Confirm Delete</DialogTitle>
+
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this document?
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#6B7280",
+              marginTop: 1,
+            }}
+          >
+            You will not able to get this back.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ padding: 2 }}>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={deleting}
+            sx={{
+              color: "#5B21B6",
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={confirmDelete}
+            disabled={deleting}
+            startIcon={<DeleteIcon />}
+            sx={{
+              backgroundColor: "#DC2626",
+              color: "#FFFFFF",
+              "&:hover": {
+                backgroundColor: "#B91C1C",
+              },
+              "&:disabled": {
+                backgroundColor: "#FCA5A5",
+                color: "#FFFFFF",
+              },
+            }}
+          >
+            {deleting ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>

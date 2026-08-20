@@ -4,6 +4,7 @@ import { Pg } from "../../entities/pg.entity.js";
 import type { UpdatePgArgs } from "../types/pg.types.ts";
 
 import { Tenant } from "../../entities/tenant.entity.ts";
+import { ILike } from "typeorm";
 
 const pgRepo = AppDataSource.getRepository(Pg);
 
@@ -92,13 +93,14 @@ export const updatePg = async (pgId: string, data: UpdatePgArgs) => {
 export const getAllPgsRooms = async (input?: {
   page?: number;
   limit?: number;
+  search?: string;
 }) => {
   try {
     const page = Math.max(input?.page ?? 1, 1);
     const limit = Math.min(Math.max(input?.limit ?? 10, 1), 100);
-
     const skip = (page - 1) * limit;
 
+    const search = input?.search?.trim();
     const [pgs, total] = await pgRepo.findAndCount({
       relations: {
         rooms: true,
@@ -131,8 +133,11 @@ export const getAllPgsRooms = async (input?: {
         },
       },
 
-      skip,
-      take: limit,
+      where: search
+        ? {
+            name: ILike(`%${search}%`),
+          }
+        : {},
 
       order: {
         createdAt: "DESC",

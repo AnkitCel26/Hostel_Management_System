@@ -353,6 +353,7 @@ type AnnouncementPaginationResponse {
 input PgPaginationInput {
   page: Int = 1
   limit: Int = 10
+  search:String
 }
 
 type PgPaginationResponse {

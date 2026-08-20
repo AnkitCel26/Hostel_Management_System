@@ -15,6 +15,7 @@ export const GET_ALL_PGS_ROOMS: TypedDocumentNode<
     input: {
       page: number;
       limit: number;
+      search?:string
     };
   }
 > = gql`
